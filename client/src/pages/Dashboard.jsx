@@ -63,7 +63,7 @@ const Dashboard = () => {
       <div className="flex justify-between items-center mb-8">
         <div>
           <h1 className="text-2xl md:text-3xl font-bold" style={{ color: 'var(--text-h)' }}>
-            Привет, {user?.name} 👋
+            Привет, {user?.name}
           </h1>
           <p className="text-sm" style={{ color: 'var(--text)' }}>
             Здесь ты можешь создавать квизы или присоединяться к играм
@@ -82,7 +82,7 @@ const Dashboard = () => {
         {/* Создание квиза */}
         <div className="rounded-lg p-6" style={{ background: 'var(--code-bg)', border: '1px solid var(--border)' }}>
           <h2 className="text-xl font-semibold mb-2" style={{ color: 'var(--text-h)' }}>
-            ✨ Создать квиз
+            Создать квиз
           </h2>
           <p className="text-sm mb-4" style={{ color: 'var(--text)' }}>
             Создай свой квиз и пригласи друзей
@@ -98,7 +98,7 @@ const Dashboard = () => {
         {/* Присоединение */}
         <div className="rounded-lg p-6" style={{ background: 'var(--code-bg)', border: '1px solid var(--border)' }}>
           <h2 className="text-xl font-semibold mb-2" style={{ color: 'var(--text-h)' }}>
-            🔗 Присоединиться
+            Присоединиться
           </h2>
           <p className="text-sm mb-4" style={{ color: 'var(--text)' }}>
             Введи код комнаты и присоединись к игре
@@ -133,7 +133,7 @@ const Dashboard = () => {
       {/* Мои квизы */}
       <div className="mt-8">
         <h2 className="text-xl font-semibold mb-4" style={{ color: 'var(--text-h)' }}>
-          📋 Мои квизы
+          Мои квизы
         </h2>
         {quizzes.length === 0 ? (
           <div className="text-center py-8" style={{ color: 'var(--text)' }}>

@@ -19,7 +19,7 @@ app.use('/auth', authRoutes);
 app.use('/quizzes', quizRoutes);
 
 app.get('/', (req, res) => {
-  res.send('Quiz App Server is running!');
+  res.send('Сервер запущен!');
 });
 
 const server = http.createServer(app);
@@ -32,4 +32,4 @@ const io = new Server(server, {
 setupSocket(io);
 
 const PORT = process.env.PORT || 5000;
-server.listen(PORT, () => console.log(`🚀 Server running on port ${PORT}`));
+server.listen(PORT, () => console.log(`Сервер запущен на порту ${PORT}`));

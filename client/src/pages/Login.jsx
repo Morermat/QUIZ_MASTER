@@ -39,7 +39,7 @@ const Login = () => {
     <div className="flex flex-col items-center justify-center min-h-[80vh] px-4">
       <div className="w-full max-w-md">
         <h1 className="text-4xl font-bold text-center mb-8" style={{ color: 'var(--text-h)' }}>
-          🎯 Quiz App
+          Квиз Мастер
         </h1>
         
         <div className="bg-[var(--code-bg)] rounded-lg p-6 shadow-[var(--shadow)]">
