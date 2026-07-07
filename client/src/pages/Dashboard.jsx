@@ -1,28 +1,25 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useAuth } from '../context/AuthContext';
 import axios from 'axios';
 
 const Dashboard = () => {
-  const [user, setUser] = useState(null);
+  const { user, logout } = useAuth();
   const [quizzes, setQuizzes] = useState([]);
   const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
 
   useEffect(() => {
-    const token = localStorage.getItem('token');
-    const userData = localStorage.getItem('user');
-    
-    if (!token || !userData) {
+    if (!user) {
       navigate('/login');
       return;
     }
-    
-    setUser(JSON.parse(userData));
-    fetchQuizzes(token);
-  }, [navigate]);
+    fetchQuizzes();
+  }, [user]);
 
-  const fetchQuizzes = async (token) => {
+  const fetchQuizzes = async () => {
     try {
+      const token = localStorage.getItem('token');
       const res = await axios.get('http://localhost:5000/quizzes', {
         headers: { Authorization: `Bearer ${token}` }
       });
@@ -35,8 +32,7 @@ const Dashboard = () => {
   };
 
   const handleLogout = () => {
-    localStorage.removeItem('token');
-    localStorage.removeItem('user');
+    logout();
     navigate('/login');
   };
 
@@ -66,7 +62,7 @@ const Dashboard = () => {
             Привет, {user?.name}
           </h1>
           <p className="text-sm" style={{ color: 'var(--text)' }}>
-            Здесь ты можешь создавать квизы или присоединяться к играм
+            Создавай квизы или присоединяйся к играм
           </p>
         </div>
         <button
@@ -79,7 +75,6 @@ const Dashboard = () => {
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        {/* Создание квиза */}
         <div className="rounded-lg p-6" style={{ background: 'var(--code-bg)', border: '1px solid var(--border)' }}>
           <h2 className="text-xl font-semibold mb-2" style={{ color: 'var(--text-h)' }}>
             Создать квиз
@@ -95,7 +90,6 @@ const Dashboard = () => {
           </button>
         </div>
 
-        {/* Присоединение */}
         <div className="rounded-lg p-6" style={{ background: 'var(--code-bg)', border: '1px solid var(--border)' }}>
           <h2 className="text-xl font-semibold mb-2" style={{ color: 'var(--text-h)' }}>
             Присоединиться
@@ -130,7 +124,6 @@ const Dashboard = () => {
         </div>
       </div>
 
-      {/* Мои квизы */}
       <div className="mt-8">
         <h2 className="text-xl font-semibold mb-4" style={{ color: 'var(--text-h)' }}>
           Мои квизы

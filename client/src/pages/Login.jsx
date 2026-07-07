@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useAuth } from '../context/AuthContext';
 import axios from 'axios';
 
 const Login = () => {
@@ -7,6 +8,7 @@ const Login = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const navigate = useNavigate();
+  const { login } = useAuth();
 
   const handleAnonymousLogin = async (e) => {
     e.preventDefault();
@@ -21,7 +23,7 @@ const Login = () => {
     try {
       const res = await axios.post('http://localhost:5000/auth/anonymous', { name });
       localStorage.setItem('token', res.data.token);
-      localStorage.setItem('user', JSON.stringify(res.data.user));
+      login(res.data.user);
       navigate('/dashboard');
     } catch (err) {
       setError('Ошибка входа: ' + (err.response?.data?.error || err.message));
@@ -31,7 +33,6 @@ const Login = () => {
   };
 
   const handleVKLogin = () => {
-    // TODO: Реализовать VK OAuth
     alert('VK вход в разработке');
   };
 
@@ -39,7 +40,7 @@ const Login = () => {
     <div className="flex flex-col items-center justify-center min-h-[80vh] px-4">
       <div className="w-full max-w-md">
         <h1 className="text-4xl font-bold text-center mb-8" style={{ color: 'var(--text-h)' }}>
-          Квиз Мастер
+          КвизМастер
         </h1>
         
         <div className="bg-[var(--code-bg)] rounded-lg p-6 shadow-[var(--shadow)]">
