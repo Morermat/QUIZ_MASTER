@@ -70,6 +70,21 @@ const CreateQuiz = () => {
         { title, questions },
         { headers: { Authorization: `Bearer ${token}` } }
       );
+      
+      localStorage.setItem('currentQuiz', JSON.stringify({
+        id: res.data.id,
+        title: title,
+        questions: questions.map(q => ({
+          id: Date.now() + Math.random(),
+          text: q.text,
+          options: q.options.map((opt, idx) => ({
+            id: Date.now() + Math.random() + idx,
+            text: opt,
+            is_correct: idx === q.correct
+          }))
+        }))
+      }));
+
       navigate(`/lobby/${res.data.code}`);
     } catch (err) {
       setError('Ошибка при создании квиза: ' + (err.response?.data?.error || err.message));

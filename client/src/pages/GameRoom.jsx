@@ -1,50 +1,70 @@
-import React, { useEffect, useState } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
-import { io } from 'socket.io-client';
+import React, { useEffect, useState, useRef } from 'react';
+import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import { useSocket } from '../context/SocketContext';
 
 const GameRoom = () => {
   const { code } = useParams();
   const navigate = useNavigate();
+  const location = useLocation();
   const { user } = useAuth();
-  const [socket, setSocket] = useState(null);
-  const [question, setQuestion] = useState(null);
+  const socket = useSocket();
+  const [question, setQuestion] = useState(location.state?.question || null);
   const [selectedOption, setSelectedOption] = useState(null);
   const [result, setResult] = useState(null);
   const [isCreator, setIsCreator] = useState(false);
+  const [timeLeft, setTimeLeft] = useState(null);
+  const timerRef = useRef(null);
 
   useEffect(() => {
-    const newSocket = io('http://localhost:5000');
-    setSocket(newSocket);
+    if (!socket) return;
 
-    newSocket.emit('join_room', { roomCode: code, userId: user.id });
+    socket.emit('join_room', { roomCode: code, userId: user.id });
 
-    newSocket.on('players_update', (data) => {
+    socket.on('players_update', (data) => {
       const currentUser = data.find(p => p.id === user.id);
       if (currentUser) {
         setIsCreator(data.length > 0 && data[0].id === user.id);
       }
     });
 
-    newSocket.on('question', (data) => {
-  console.log('Получен вопрос в GameRoom:', data);
-  setQuestion(data);
-  setSelectedOption(null);
-  setResult(null);
-});
+    socket.on('question', (data) => {
+      console.log('Получен следующий вопрос в GameRoom:', data);
+      setQuestion(data);
+      setSelectedOption(null);
+      setResult(null);
+      setTimeLeft(30);
 
-    newSocket.on('answer_result', (data) => {
-      setResult(data);
+      if (timerRef.current) clearInterval(timerRef.current);
+      timerRef.current = setInterval(() => {
+        setTimeLeft(prev => {
+          if (prev <= 1) {
+            clearInterval(timerRef.current);
+            return 0;
+          }
+          return prev - 1;
+        });
+      }, 1000);
     });
 
-    newSocket.on('leaderboard', (data) => {
+    socket.on('answer_result', (data) => {
+      setResult(data);
+      if (timerRef.current) clearInterval(timerRef.current);
+      setTimeLeft(null);
+    });
+
+    socket.on('leaderboard', (data) => {
       navigate(`/leaderboard/${code}`, { state: { leaderboard: data } });
     });
 
     return () => {
-      newSocket.disconnect();
+      socket.off('players_update');
+      socket.off('question');
+      socket.off('answer_result');
+      socket.off('leaderboard');
+      if (timerRef.current) clearInterval(timerRef.current);
     };
-  }, [code, user.id, navigate]);
+  }, [socket, code, user.id, navigate]);
 
   const handleAnswer = (optionId) => {
     if (selectedOption || !socket || !question) return;
@@ -60,6 +80,8 @@ const GameRoom = () => {
   const handleNextQuestion = () => {
     if (socket) {
       socket.emit('next_question', { roomCode: code });
+      if (timerRef.current) clearInterval(timerRef.current);
+      setTimeLeft(null);
     }
   };
 
@@ -79,7 +101,7 @@ const GameRoom = () => {
             Комната {code}
           </span>
           <span className="text-sm" style={{ color: 'var(--text)' }}>
-            {user.name}
+            {user.name} {timeLeft !== null && `| Осталось: ${timeLeft}с`}
           </span>
         </div>
 
@@ -109,7 +131,7 @@ const GameRoom = () => {
                 <button
                   key={opt.id}
                   onClick={() => handleAnswer(opt.id)}
-                  disabled={!!selectedOption}
+                  disabled={!!selectedOption || (timeLeft === 0)}
                   className="w-full px-4 py-3 rounded text-left transition"
                   style={buttonStyle}
                 >
@@ -118,6 +140,12 @@ const GameRoom = () => {
               );
             })}
           </div>
+
+          {timeLeft === 0 && !result && (
+            <div className="mt-4 p-3 rounded" style={{ background: 'rgba(239,68,68,0.1)', border: '1px solid #ef4444' }}>
+              <p className="text-sm" style={{ color: '#ef4444' }}>Время вышло. Ожидайте следующего вопроса.</p>
+            </div>
+          )}
 
           {result && (
             <div className="mt-4 p-3 rounded" style={{ background: result.isCorrect ? 'rgba(34,197,94,0.1)' : 'rgba(239,68,68,0.1)', border: '1px solid ' + (result.isCorrect ? '#22c55e' : '#ef4444') }}>

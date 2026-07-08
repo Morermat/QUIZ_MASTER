@@ -50,7 +50,8 @@ module.exports = (io) => {
             { id: 2, text: '4', is_correct: true },
             { id: 3, text: '5', is_correct: false },
             { id: 4, text: '6', is_correct: false }
-          ]
+          ],
+          timeLimit: 30
         }
       ];
 
@@ -58,7 +59,11 @@ module.exports = (io) => {
       const question = room.questions[0];
       
       console.log('Отправка вопроса в комнату:', roomCode, question.text);
-      io.to(roomCode).emit('question', question);
+      
+      io.to(roomCode).emit('question', {
+        ...question,
+        timeLimit: question.timeLimit || 30
+      });
       io.to(roomCode).emit('game_started');
     });
 
@@ -103,7 +108,10 @@ module.exports = (io) => {
       }
 
       const question = room.questions[room.currentQuestionIndex];
-      io.to(roomCode).emit('question', question);
+      io.to(roomCode).emit('question', {
+        ...question,
+        timeLimit: question.timeLimit || 30
+      });
     });
 
     socket.on('disconnect', () => {

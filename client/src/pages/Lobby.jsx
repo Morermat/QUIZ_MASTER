@@ -1,19 +1,18 @@
-import React, { useEffect, useState, useRef } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { io } from 'socket.io-client';
 import { useAuth } from '../context/AuthContext';
+import { useSocket } from '../context/SocketContext';
 
 const Lobby = () => {
   const { code } = useParams();
   const navigate = useNavigate();
   const { user, logout } = useAuth();
+  const socket = useSocket();
   const [players, setPlayers] = useState([]);
   const [isCreator, setIsCreator] = useState(false);
-  const socketRef = useRef(null);
 
   useEffect(() => {
-    socketRef.current = io('http://localhost:5000');
-    const socket = socketRef.current;
+    if (!socket) return;
 
     socket.emit('join_room', { roomCode: code, userId: user.id });
 
@@ -25,32 +24,38 @@ const Lobby = () => {
       }
     });
 
+    socket.on('question', (data) => {
+      console.log('Получен вопрос в Lobby, переходим в игру:', data);
+      navigate(`/game/${code}`, { state: { question: data } });
+    });
+
     socket.on('game_started', () => {
-      navigate(`/game/${code}`);
+      console.log('Получен game_started, но вопрос уже должен быть обработан');
     });
 
     return () => {
-      socket.disconnect();
+      socket.off('players_update');
+      socket.off('question');
+      socket.off('game_started');
     };
-  }, [code, user.id, navigate]);
+  }, [socket, code, user.id, navigate]);
 
   const handleStartGame = () => {
-  const socket = socketRef.current;
-  if (socket) {
+    if (!socket) return;
+
     const storedQuiz = JSON.parse(localStorage.getItem('currentQuiz') || '{}');
-    navigate(`/game/${code}`);
-    setTimeout(() => {
-      socket.emit('start_quiz', {
-        roomCode: code,
-        questions: storedQuiz.questions || []
-      });
-    }, 300);
-  }
-};
+    const questions = storedQuiz.questions || [];
+    console.log('Отправка start_quiz:', { roomCode: code, questions });
+
+    socket.emit('start_quiz', {
+      roomCode: code,
+      questions: questions
+    });
+  };
 
   const handleLogout = () => {
-    if (socketRef.current) {
-      socketRef.current.disconnect();
+    if (socket) {
+      socket.disconnect();
     }
     logout();
     navigate('/login');
