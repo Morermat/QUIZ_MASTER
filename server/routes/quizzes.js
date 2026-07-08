@@ -1,13 +1,14 @@
 const express = require('express');
 const router = express.Router();
 const { v4: uuidv4 } = require('uuid');
+const auth = require('../middleware/auth');
 
 const quizzes = [];
 const generateCode = () => Math.floor(100000 + Math.random() * 900000).toString();
 
-router.post('/', (req, res) => {
+router.post('/', auth, (req, res) => {
   const { title, questions } = req.body;
-  const userId = req.userId || 'temp_user';
+  const userId = req.userId;
   const code = generateCode();
   
   const quiz = {
@@ -23,13 +24,13 @@ router.post('/', (req, res) => {
   res.json(quiz);
 });
 
-router.get('/', (req, res) => {
-  const userId = req.userId || 'temp_user';
+router.get('/', auth, (req, res) => {
+  const userId = req.userId;
   const userQuizzes = quizzes.filter(q => q.created_by === userId);
   res.json(userQuizzes);
 });
 
-router.get('/:id', (req, res) => {
+router.get('/:id', auth, (req, res) => {
   const { id } = req.params;
   const quiz = quizzes.find(q => q.id === id);
   if (!quiz) return res.status(404).json({ error: 'Квиз не был найден' });

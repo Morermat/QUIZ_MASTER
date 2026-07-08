@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { io } from 'socket.io-client';
 import { useAuth } from '../context/AuthContext';
@@ -8,34 +8,49 @@ const Lobby = () => {
   const navigate = useNavigate();
   const { user, logout } = useAuth();
   const [players, setPlayers] = useState([]);
-  const [isCreator, setIsCreator] = useState(true);
-  const [socket, setSocket] = useState(null);
+  const [isCreator, setIsCreator] = useState(false);
+  const socketRef = useRef(null);
 
   useEffect(() => {
-    const newSocket = io('http://localhost:5000');
-    setSocket(newSocket);
+    socketRef.current = io('http://localhost:5000');
+    const socket = socketRef.current;
 
-    newSocket.emit('join_room', { roomCode: code, userId: user.id });
+    socket.emit('join_room', { roomCode: code, userId: user.id });
 
-    newSocket.on('players_update', (data) => {
+    socket.on('players_update', (data) => {
       setPlayers(data);
+      const currentPlayer = data.find(p => p.id === user.id);
+      if (currentPlayer) {
+        setIsCreator(currentPlayer.isCreator || false);
+      }
+    });
+
+    socket.on('game_started', () => {
+      navigate(`/game/${code}`);
     });
 
     return () => {
-      newSocket.disconnect();
+      socket.disconnect();
     };
-  }, [code, user.id]);
+  }, [code, user.id, navigate]);
 
   const handleStartGame = () => {
-    if (socket) {
-      socket.emit('start_quiz', { roomCode: code });
-      navigate(`/game/${code}`);
-    }
-  };
+  const socket = socketRef.current;
+  if (socket) {
+    const storedQuiz = JSON.parse(localStorage.getItem('currentQuiz') || '{}');
+    navigate(`/game/${code}`);
+    setTimeout(() => {
+      socket.emit('start_quiz', {
+        roomCode: code,
+        questions: storedQuiz.questions || []
+      });
+    }, 300);
+  }
+};
 
   const handleLogout = () => {
-    if (socket) {
-      socket.disconnect();
+    if (socketRef.current) {
+      socketRef.current.disconnect();
     }
     logout();
     navigate('/login');

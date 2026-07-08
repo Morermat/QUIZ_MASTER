@@ -5,6 +5,7 @@ import Login from './pages/Login';
 import Dashboard from './pages/Dashboard';
 import CreateQuiz from './pages/CreateQuiz';
 import Lobby from './pages/Lobby';
+import GameRoom from './pages/GameRoom';
 
 function App() {
   return (
@@ -17,6 +18,7 @@ function App() {
             <Route path="/create" element={<CreateQuiz />} />
             <Route path="/lobby/:code" element={<Lobby />} />
             <Route path="/" element={<Navigate to="/dashboard" />} />
+            <Route path="/game/:code" element={<GameRoom />} />
           </Routes>
         </div>
       </BrowserRouter>
