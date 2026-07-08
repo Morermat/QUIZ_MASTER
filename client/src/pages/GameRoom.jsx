@@ -19,7 +19,7 @@ const GameRoom = () => {
   useEffect(() => {
     if (!socket) return;
 
-    socket.emit('join_room', { roomCode: code, userId: user.id });
+    socket.emit('join_room', { roomCode: code, userId: user.id, userName: user.name });
 
     socket.on('players_update', (data) => {
       const currentUser = data.find(p => p.id === user.id);
@@ -28,23 +28,25 @@ const GameRoom = () => {
       }
     });
 
+    socket.on('game_state', (data) => {
+      console.log('Восстановление состояния:', data);
+      setQuestion(data.question);
+      setIsCreator(data.isCreator);
+      if (data.question) {
+        const timeLimit = data.question.timeLimit || data.timeLimit || 30;
+        setTimeLeft(timeLimit);
+        startTimer(timeLimit);
+      }
+    });
+
     socket.on('question', (data) => {
-      console.log('Получен следующий вопрос в GameRoom:', data);
+      console.log('Новый вопрос:', data);
       setQuestion(data);
       setSelectedOption(null);
       setResult(null);
-      setTimeLeft(30);
-
-      if (timerRef.current) clearInterval(timerRef.current);
-      timerRef.current = setInterval(() => {
-        setTimeLeft(prev => {
-          if (prev <= 1) {
-            clearInterval(timerRef.current);
-            return 0;
-          }
-          return prev - 1;
-        });
-      }, 1000);
+      const timeLimit = data.timeLimit || 30;
+      setTimeLeft(timeLimit);
+      startTimer(timeLimit);
     });
 
     socket.on('answer_result', (data) => {
@@ -54,17 +56,38 @@ const GameRoom = () => {
     });
 
     socket.on('leaderboard', (data) => {
-      navigate(`/leaderboard/${code}`, { state: { leaderboard: data } });
+      navigate(`/leaderboard/${code}`, { state: data });
+    });
+
+    socket.on('error', (message) => {
+      alert(message);
+      navigate('/dashboard');
     });
 
     return () => {
       socket.off('players_update');
+      socket.off('game_state');
       socket.off('question');
       socket.off('answer_result');
       socket.off('leaderboard');
+      socket.off('error');
       if (timerRef.current) clearInterval(timerRef.current);
     };
-  }, [socket, code, user.id, navigate]);
+  }, [socket, code, user.id, user.name, navigate]);
+
+  const startTimer = (duration) => {
+    if (timerRef.current) clearInterval(timerRef.current);
+    setTimeLeft(duration);
+    timerRef.current = setInterval(() => {
+      setTimeLeft(prev => {
+        if (prev <= 1) {
+          clearInterval(timerRef.current);
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+  };
 
   const handleAnswer = (optionId) => {
     if (selectedOption || !socket || !question) return;
@@ -101,7 +124,8 @@ const GameRoom = () => {
             Комната {code}
           </span>
           <span className="text-sm" style={{ color: 'var(--text)' }}>
-            {user.name} {timeLeft !== null && `| Осталось: ${timeLeft}с`}
+            {user.name} {timeLeft !== null && timeLeft > 0 && `| Осталось: ${timeLeft}с`}
+            {timeLeft === 0 && '| Время вышло'}
           </span>
         </div>
 
@@ -111,7 +135,7 @@ const GameRoom = () => {
           </h2>
 
           <div className="space-y-3">
-            {question.options.map((opt) => {
+            {question.options && question.options.map((opt) => {
               const isSelected = selectedOption === opt.id;
               let buttonStyle = {};
 
@@ -143,7 +167,7 @@ const GameRoom = () => {
 
           {timeLeft === 0 && !result && (
             <div className="mt-4 p-3 rounded" style={{ background: 'rgba(239,68,68,0.1)', border: '1px solid #ef4444' }}>
-              <p className="text-sm" style={{ color: '#ef4444' }}>Время вышло. Ожидайте следующего вопроса.</p>
+              <p className="text-sm" style={{ color: '#ef4444' }}>Время вышло</p>
             </div>
           )}
 

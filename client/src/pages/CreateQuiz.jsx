@@ -5,14 +5,15 @@ import axios from 'axios';
 const CreateQuiz = () => {
   const [title, setTitle] = useState('');
   const [questions, setQuestions] = useState([
-    { text: '', options: ['', '', '', ''], correct: 0 }
+    { text: '', options: ['', '', '', ''], correct: 0, timeLimit: 30 }
   ]);
+  const [timeLimit, setTimeLimit] = useState(30);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const navigate = useNavigate();
 
   const addQuestion = () => {
-    setQuestions([...questions, { text: '', options: ['', '', '', ''], correct: 0 }]);
+    setQuestions([...questions, { text: '', options: ['', '', '', ''], correct: 0, timeLimit: timeLimit }]);
   };
 
   const removeQuestion = (index) => {
@@ -24,6 +25,12 @@ const CreateQuiz = () => {
   const updateQuestion = (index, value) => {
     const updated = [...questions];
     updated[index].text = value;
+    setQuestions(updated);
+  };
+
+  const updateQuestionTime = (index, value) => {
+    const updated = [...questions];
+    updated[index].timeLimit = value;
     setQuestions(updated);
   };
 
@@ -65,24 +72,32 @@ const CreateQuiz = () => {
 
     try {
       const token = localStorage.getItem('token');
+      const formattedQuestions = questions.map(q => ({
+        id: Date.now() + Math.random(),
+        text: q.text,
+        options: q.options.map((opt, idx) => ({
+          id: Date.now() + Math.random() + idx,
+          text: opt,
+          is_correct: idx === q.correct
+        })),
+        timeLimit: q.timeLimit || timeLimit
+      }));
+
       const res = await axios.post(
         'http://localhost:5000/quizzes',
-        { title, questions },
+        { 
+          title, 
+          questions: formattedQuestions,
+          timeLimit: timeLimit
+        },
         { headers: { Authorization: `Bearer ${token}` } }
       );
       
       localStorage.setItem('currentQuiz', JSON.stringify({
         id: res.data.id,
         title: title,
-        questions: questions.map(q => ({
-          id: Date.now() + Math.random(),
-          text: q.text,
-          options: q.options.map((opt, idx) => ({
-            id: Date.now() + Math.random() + idx,
-            text: opt,
-            is_correct: idx === q.correct
-          }))
-        }))
+        questions: formattedQuestions,
+        timeLimit: timeLimit
       }));
 
       navigate(`/lobby/${res.data.code}`);
@@ -94,7 +109,7 @@ const CreateQuiz = () => {
   };
 
   return (
-    <div className="flex-1 p-4 md:p-8 max-w-3xl mx-auto">
+    <div className="flex-1 p-4 md:p-8 max-w-4xl mx-auto">
       <h1 className="text-2xl md:text-3xl font-bold mb-6" style={{ color: 'var(--text-h)' }}>
         Создание квиза
       </h1>
@@ -121,22 +136,54 @@ const CreateQuiz = () => {
           />
         </div>
 
+        <div className="mb-6">
+          <label className="block text-sm font-medium mb-2" style={{ color: 'var(--text)' }}>
+            Таймер на вопрос (сек)
+          </label>
+          <input
+            type="number"
+            value={timeLimit}
+            onChange={(e) => setTimeLimit(parseInt(e.target.value) || 30)}
+            className="w-full px-4 py-2 rounded border bg-[var(--bg)] text-[var(--text-h)]"
+            style={{ borderColor: 'var(--border)' }}
+            min="5"
+            max="300"
+            disabled={loading}
+          />
+          <p className="text-xs mt-1" style={{ color: 'var(--text)' }}>
+            Таймер по умолчанию. Для каждого вопроса можно изменить отдельно.
+          </p>
+        </div>
+
         {questions.map((q, qIndex) => (
           <div key={qIndex} className="mb-6 p-4 rounded" style={{ background: 'var(--code-bg)', border: '1px solid var(--border)' }}>
             <div className="flex justify-between items-center mb-3">
               <h3 className="font-medium" style={{ color: 'var(--text-h)' }}>
                 Вопрос {qIndex + 1}
               </h3>
-              {questions.length > 1 && (
-                <button
-                  type="button"
-                  onClick={() => removeQuestion(qIndex)}
-                  className="text-sm px-3 py-1 rounded"
-                  style={{ background: 'rgba(255,0,0,0.1)', color: '#ef4444' }}
-                >
-                  Удалить
-                </button>
-              )}
+              <div className="flex items-center gap-3">
+                <input
+                  type="number"
+                  value={q.timeLimit || timeLimit}
+                  onChange={(e) => updateQuestionTime(qIndex, parseInt(e.target.value) || timeLimit)}
+                  className="w-20 px-2 py-1 rounded border bg-[var(--bg)] text-[var(--text-h)] text-sm"
+                  style={{ borderColor: 'var(--border)' }}
+                  min="5"
+                  max="300"
+                  disabled={loading}
+                  placeholder="Таймер"
+                />
+                {questions.length > 1 && (
+                  <button
+                    type="button"
+                    onClick={() => removeQuestion(qIndex)}
+                    className="text-sm px-3 py-1 rounded"
+                    style={{ background: 'rgba(255,0,0,0.1)', color: '#ef4444' }}
+                  >
+                    Удалить
+                  </button>
+                )}
+              </div>
             </div>
 
             <input

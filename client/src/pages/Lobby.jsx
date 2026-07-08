@@ -10,11 +10,12 @@ const Lobby = () => {
   const socket = useSocket();
   const [players, setPlayers] = useState([]);
   const [isCreator, setIsCreator] = useState(false);
+  const [isRestarting, setIsRestarting] = useState(false);
 
   useEffect(() => {
     if (!socket) return;
 
-    socket.emit('join_room', { roomCode: code, userId: user.id });
+    socket.emit('join_room', { roomCode: code, userId: user.id, userName: user.name });
 
     socket.on('players_update', (data) => {
       setPlayers(data);
@@ -25,38 +26,47 @@ const Lobby = () => {
     });
 
     socket.on('question', (data) => {
-      console.log('Получен вопрос в Lobby, переходим в игру:', data);
+      console.log('Получен вопрос, переходим в игру:', data);
       navigate(`/game/${code}`, { state: { question: data } });
     });
 
     socket.on('game_started', () => {
-      console.log('Получен game_started, но вопрос уже должен быть обработан');
+      console.log('Игра началась');
+    });
+
+    socket.on('quiz_restarted', () => {
+      console.log('Квиз перезапущен');
+      setIsRestarting(false);
+      socket.emit('join_room', { roomCode: code, userId: user.id, userName: user.name });
+    });
+
+    socket.on('error', (message) => {
+      alert(message);
+      navigate('/dashboard');
     });
 
     return () => {
       socket.off('players_update');
       socket.off('question');
       socket.off('game_started');
+      socket.off('quiz_restarted');
+      socket.off('error');
     };
-  }, [socket, code, user.id, navigate]);
+  }, [socket, code, user.id, user.name, navigate]);
 
   const handleStartGame = () => {
     if (!socket) return;
+    socket.emit('start_quiz', { roomCode: code });
+  };
 
-    const storedQuiz = JSON.parse(localStorage.getItem('currentQuiz') || '{}');
-    const questions = storedQuiz.questions || [];
-    console.log('Отправка start_quiz:', { roomCode: code, questions });
-
-    socket.emit('start_quiz', {
-      roomCode: code,
-      questions: questions
-    });
+  const handleRestart = () => {
+    if (!socket || !isCreator) return;
+    if (!confirm('Перезапустить квиз? Очки будут сброшены.')) return;
+    setIsRestarting(true);
+    socket.emit('restart_quiz', { roomCode: code });
   };
 
   const handleLogout = () => {
-    if (socket) {
-      socket.disconnect();
-    }
     logout();
     navigate('/login');
   };
@@ -77,7 +87,7 @@ const Lobby = () => {
           </button>
         </div>
         <p className="text-sm mb-6" style={{ color: 'var(--text)' }}>
-          Отправь этот код друзьям, чтобы они присоединились
+          Отправь этот код друзьям
         </p>
 
         <div className="mb-6 p-4 rounded" style={{ background: 'var(--code-bg)', border: '1px solid var(--border)' }}>
@@ -87,15 +97,15 @@ const Lobby = () => {
           <div className="space-y-2">
             {players.map((p) => (
               <div key={p.id} className="flex items-center gap-3">
-                <img
-                  src={p.avatar_url || 'https://ui-avatars.com/api/?name=' + p.name}
-                  alt={p.name}
-                  className="w-8 h-8 rounded-full"
-                />
                 <span style={{ color: 'var(--text-h)' }}>{p.name}</span>
                 {p.id === user.id && (
                   <span className="text-xs px-2 py-0.5 rounded" style={{ background: 'var(--accent)', color: 'white' }}>
                     Вы
+                  </span>
+                )}
+                {p.isCreator && (
+                  <span className="text-xs px-2 py-0.5 rounded" style={{ background: 'rgba(234,179,8,0.2)', color: '#eab308' }}>
+                    Организатор
                   </span>
                 )}
               </div>
@@ -110,15 +120,21 @@ const Lobby = () => {
           <button
             onClick={handleStartGame}
             className="btn-primary w-full py-2 text-lg"
+            disabled={isRestarting}
           >
             Начать игру
           </button>
         )}
 
-        {isCreator && players.length === 0 && (
-          <p className="text-sm text-center" style={{ color: 'var(--text)' }}>
-            Подождите, пока кто-нибудь присоединится
-          </p>
+        {isCreator && (
+          <button
+            onClick={handleRestart}
+            className="w-full mt-2 py-2 rounded text-sm"
+            style={{ background: 'rgba(239,68,68,0.1)', color: '#ef4444', border: '1px solid #ef4444' }}
+            disabled={isRestarting || players.length === 0}
+          >
+            {isRestarting ? 'Перезапуск...' : 'Перезапустить квиз'}
+          </button>
         )}
 
         <button

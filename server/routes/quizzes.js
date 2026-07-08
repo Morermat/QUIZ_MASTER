@@ -2,25 +2,43 @@ const express = require('express');
 const router = express.Router();
 const { v4: uuidv4 } = require('uuid');
 const auth = require('../middleware/auth');
+const rooms = require('../rooms');
 
 const quizzes = [];
 const generateCode = () => Math.floor(100000 + Math.random() * 900000).toString();
 
 router.post('/', auth, (req, res) => {
-  const { title, questions } = req.body;
+  const { title, questions, timeLimit } = req.body;
   const userId = req.userId;
   const code = generateCode();
-  
+
   const quiz = {
     id: uuidv4(),
     title,
     code,
     created_by: userId,
     status: 'waiting',
-    questions: questions || []
+    questions: questions || [],
+    timeLimit: timeLimit || 30
   };
-  
+
   quizzes.push(quiz);
+
+  rooms[code] = {
+    quizId: quiz.id,
+    players: [],
+    scores: {},
+    lastAnswerTimes: {},
+    currentQuestionIndex: -1,
+    questions: JSON.parse(JSON.stringify(questions || [])),
+    originalQuestions: JSON.parse(JSON.stringify(questions || [])),
+    creatorId: userId,
+    status: 'waiting',
+    timeLimit: timeLimit || 30,
+    startedAt: null,
+    finishedAt: null
+  };
+
   res.json(quiz);
 });
 
@@ -33,7 +51,7 @@ router.get('/', auth, (req, res) => {
 router.get('/:id', auth, (req, res) => {
   const { id } = req.params;
   const quiz = quizzes.find(q => q.id === id);
-  if (!quiz) return res.status(404).json({ error: 'Квиз не был найден' });
+  if (!quiz) return res.status(404).json({ error: 'Квиз не найден' });
   res.json(quiz);
 });
 
