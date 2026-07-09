@@ -1,35 +1,93 @@
-require('dotenv').config();
-const express = require('express');
-const http = require('http');
-const cors = require('cors');
-const { Server } = require('socket.io');
-const authRoutes = require('./routes/auth');
-const quizRoutes = require('./routes/quizzes');
-const setupSocket = require('./socket');
+require("dotenv").config();
+
+const express = require("express");
+const http = require("http");
+const cors = require("cors");
+const { Server } = require("socket.io");
+
+const authRoutes = require("./routes/auth");
+const quizRoutes = require("./routes/quizzes");
+
+const setupSocket = require("./socket");
 
 const app = express();
 
+app.disable("x-powered-by");
+
 app.use(cors({
-  origin: ['http://localhost:5173', 'http://localhost:5174'],
-  credentials: true
+    origin: process.env.CLIENT_URL
+        ? process.env.CLIENT_URL.split(",")
+        : [
+            "http://localhost:5173",
+            "http://localhost:5174"
+        ],
+    credentials: true
 }));
 
-app.use(express.json());
-app.use('/auth', authRoutes);
-app.use('/quizzes', quizRoutes);
+app.use(express.json({
+    limit: "5mb"
+}));
 
-app.get('/', (req, res) => {
-  res.send('Сервер запущен!');
+app.use(express.urlencoded({
+    extended: true
+}));
+
+app.get("/", (_, res) => {
+    res.json({
+        name: "Quiz Master API",
+        version: "2.0.0",
+        status: "online",
+        uptime: process.uptime()
+    });
+});
+
+app.use("/auth", authRoutes);
+app.use("/quizzes", quizRoutes);
+
+app.use((req, res) => {
+    res.status(404).json({
+        error: "Route not found"
+    });
+});
+
+app.use((err, req, res, next) => {
+    console.error(err);
+    res.status(500).json({
+        error: "Internal server error"
+    });
 });
 
 const server = http.createServer(app);
-const io = new Server(server, { 
-  cors: { 
-    origin: ['http://localhost:5173', 'http://localhost:5174'],
-    credentials: true
-  } 
+
+const io = new Server(server, {
+    cors: {
+        origin: process.env.CLIENT_URL
+            ? process.env.CLIENT_URL.split(",")
+            : [
+                "http://localhost:5173",
+                "http://localhost:5174"
+            ],
+        credentials: true
+    },
+    pingInterval: 10000,
+    pingTimeout: 5000,
+    transports: [
+        "websocket",
+        "polling"
+    ]
 });
+
 setupSocket(io);
 
 const PORT = process.env.PORT || 5000;
-server.listen(PORT, () => console.log(`Сервер запущен на порту ${PORT}`));
+
+server.listen(PORT, () => {
+    console.log("");
+    console.log("======================================");
+    console.log(" Quiz Master Server");
+    console.log("======================================");
+    console.log("PORT:", PORT);
+    console.log("MODE:", process.env.NODE_ENV || "development");
+    console.log("======================================");
+    console.log("");
+});

@@ -29,9 +29,15 @@ const Leaderboard = () => {
       navigate(`/lobby/${code}`);
     });
 
+    socket.on('error', (message) => {
+      alert(message);
+      navigate('/dashboard');
+    });
+
     return () => {
       socket.off('players_update');
       socket.off('quiz_restarted');
+      socket.off('error');
     };
   }, [socket, code, user.id, user.name, navigate]);
 

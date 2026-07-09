@@ -2,7 +2,7 @@ const express = require('express');
 const router = express.Router();
 const { v4: uuidv4 } = require('uuid');
 const auth = require('../middleware/auth');
-const rooms = require('../rooms');
+const gameLogic = require('../gameLogic');
 
 const quizzes = [];
 const generateCode = () => Math.floor(100000 + Math.random() * 900000).toString();
@@ -24,20 +24,12 @@ router.post('/', auth, (req, res) => {
 
   quizzes.push(quiz);
 
-  rooms[code] = {
-    quizId: quiz.id,
-    players: [],
-    scores: {},
-    lastAnswerTimes: {},
-    currentQuestionIndex: -1,
-    questions: JSON.parse(JSON.stringify(questions || [])),
-    originalQuestions: JSON.parse(JSON.stringify(questions || [])),
-    creatorId: userId,
-    status: 'waiting',
+  gameLogic.createRoom(code, {
+    title: title,
+    questions: questions || [],
     timeLimit: timeLimit || 30,
-    startedAt: null,
-    finishedAt: null
-  };
+    creatorId: userId
+  });
 
   res.json(quiz);
 });

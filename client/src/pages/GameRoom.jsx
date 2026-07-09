@@ -14,6 +14,7 @@ const GameRoom = () => {
   const [result, setResult] = useState(null);
   const [isCreator, setIsCreator] = useState(false);
   const [timeLeft, setTimeLeft] = useState(null);
+  const [isAnswered, setIsAnswered] = useState(false);
   const timerRef = useRef(null);
 
   useEffect(() => {
@@ -21,42 +22,54 @@ const GameRoom = () => {
 
     socket.emit('join_room', { roomCode: code, userId: user.id, userName: user.name });
 
-    socket.on('players_update', (data) => {
-      const currentUser = data.find(p => p.id === user.id);
-      if (currentUser) {
-        setIsCreator(data.length > 0 && data[0].id === user.id);
-      }
-    });
-
     socket.on('game_state', (data) => {
       console.log('Восстановление состояния:', data);
-      setQuestion(data.question);
       setIsCreator(data.isCreator);
-      if (data.question) {
-        const timeLimit = data.question.timeLimit || data.timeLimit || 30;
-        setTimeLeft(timeLimit);
-        startTimer(timeLimit);
+      if (data.currentQuestion) {
+        setQuestion(data.currentQuestion);
+        setSelectedOption(null);
+        setResult(null);
+        setIsAnswered(false);
+        setTimeLeft(data.timeLeft);
+        if (data.timeLeft > 0) {
+          startTimer(data.timeLeft);
+        }
+      } else {
+        setQuestion(null);
       }
     });
 
     socket.on('question', (data) => {
       console.log('Новый вопрос:', data);
-      setQuestion(data);
+      setQuestion(data.question);
       setSelectedOption(null);
       setResult(null);
-      const timeLimit = data.timeLimit || 30;
-      setTimeLeft(timeLimit);
-      startTimer(timeLimit);
+      setIsAnswered(false);
+      const limit = data.timeLimit || 30;
+      setTimeLeft(limit);
+      startTimer(limit);
     });
 
     socket.on('answer_result', (data) => {
-      setResult(data);
+      setResult({ isCorrect: data.isCorrect });
+      setIsAnswered(true);
       if (timerRef.current) clearInterval(timerRef.current);
       setTimeLeft(null);
     });
 
+    socket.on('players_update', (data) => {
+      const currentUser = data.find(p => p.id === user.id);
+      if (currentUser) {
+        setIsCreator(currentUser.isCreator || false);
+      }
+    });
+
     socket.on('leaderboard', (data) => {
       navigate(`/leaderboard/${code}`, { state: data });
+    });
+
+    socket.on('quiz_finished', () => {
+      navigate(`/leaderboard/${code}`);
     });
 
     socket.on('error', (message) => {
@@ -65,11 +78,12 @@ const GameRoom = () => {
     });
 
     return () => {
-      socket.off('players_update');
       socket.off('game_state');
       socket.off('question');
       socket.off('answer_result');
+      socket.off('players_update');
       socket.off('leaderboard');
+      socket.off('quiz_finished');
       socket.off('error');
       if (timerRef.current) clearInterval(timerRef.current);
     };
@@ -90,7 +104,7 @@ const GameRoom = () => {
   };
 
   const handleAnswer = (optionId) => {
-    if (selectedOption || !socket || !question) return;
+    if (isAnswered || !socket || !question) return;
     setSelectedOption(optionId);
     socket.emit('submit_answer', {
       roomCode: code,
@@ -98,14 +112,6 @@ const GameRoom = () => {
       questionId: question.id,
       optionId: optionId
     });
-  };
-
-  const handleNextQuestion = () => {
-    if (socket) {
-      socket.emit('next_question', { roomCode: code });
-      if (timerRef.current) clearInterval(timerRef.current);
-      setTimeLeft(null);
-    }
   };
 
   if (!question) {
@@ -139,11 +145,11 @@ const GameRoom = () => {
               const isSelected = selectedOption === opt.id;
               let buttonStyle = {};
 
-              if (result && isSelected) {
+              if (isAnswered && isSelected) {
                 buttonStyle = opt.is_correct 
                   ? { background: '#22c55e', color: 'white' }
                   : { background: '#ef4444', color: 'white' };
-              } else if (result && opt.is_correct) {
+              } else if (isAnswered && opt.is_correct) {
                 buttonStyle = { background: '#22c55e', color: 'white' };
               } else if (isSelected) {
                 buttonStyle = { background: 'var(--accent)', color: 'white' };
@@ -155,7 +161,7 @@ const GameRoom = () => {
                 <button
                   key={opt.id}
                   onClick={() => handleAnswer(opt.id)}
-                  disabled={!!selectedOption || (timeLeft === 0)}
+                  disabled={isAnswered || timeLeft === 0}
                   className="w-full px-4 py-3 rounded text-left transition"
                   style={buttonStyle}
                 >
@@ -165,7 +171,7 @@ const GameRoom = () => {
             })}
           </div>
 
-          {timeLeft === 0 && !result && (
+          {timeLeft === 0 && !isAnswered && (
             <div className="mt-4 p-3 rounded" style={{ background: 'rgba(239,68,68,0.1)', border: '1px solid #ef4444' }}>
               <p className="text-sm" style={{ color: '#ef4444' }}>Время вышло</p>
             </div>
@@ -176,25 +182,9 @@ const GameRoom = () => {
               <p className="font-medium" style={{ color: result.isCorrect ? '#22c55e' : '#ef4444' }}>
                 {result.isCorrect ? 'Правильно' : 'Неправильно'}
               </p>
-              <p className="text-sm mt-1" style={{ color: 'var(--text)' }}>{result.prediction}</p>
             </div>
           )}
         </div>
-
-        {isCreator && result && (
-          <button
-            onClick={handleNextQuestion}
-            className="btn-primary w-full py-2"
-          >
-            Следующий вопрос
-          </button>
-        )}
-
-        {!isCreator && result && (
-          <p className="text-center text-sm" style={{ color: 'var(--text)' }}>
-            Ожидайте следующего вопроса
-          </p>
-        )}
       </div>
     </div>
   );

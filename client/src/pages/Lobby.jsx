@@ -11,6 +11,7 @@ const Lobby = () => {
   const [players, setPlayers] = useState([]);
   const [isCreator, setIsCreator] = useState(false);
   const [isRestarting, setIsRestarting] = useState(false);
+  const [gameState, setGameState] = useState(null);
 
   useEffect(() => {
     if (!socket) return;
@@ -25,9 +26,20 @@ const Lobby = () => {
       }
     });
 
+    socket.on('game_state', (data) => {
+      console.log('Состояние игры в лобби:', data);
+      setGameState(data);
+      if (data.status === 'active' && data.currentQuestion) {
+        navigate(`/game/${code}`, { state: { question: data.currentQuestion } });
+      }
+      if (data.status === 'finished') {
+        navigate(`/leaderboard/${code}`, { state: { players: data.players || [] } });
+      }
+    });
+
     socket.on('question', (data) => {
       console.log('Получен вопрос, переходим в игру:', data);
-      navigate(`/game/${code}`, { state: { question: data } });
+      navigate(`/game/${code}`, { state: { question: data.question } });
     });
 
     socket.on('game_started', () => {
@@ -37,7 +49,12 @@ const Lobby = () => {
     socket.on('quiz_restarted', () => {
       console.log('Квиз перезапущен');
       setIsRestarting(false);
+      setGameState(null);
       socket.emit('join_room', { roomCode: code, userId: user.id, userName: user.name });
+    });
+
+    socket.on('quiz_finished', () => {
+      navigate(`/leaderboard/${code}`);
     });
 
     socket.on('error', (message) => {
@@ -47,29 +64,33 @@ const Lobby = () => {
 
     return () => {
       socket.off('players_update');
+      socket.off('game_state');
       socket.off('question');
       socket.off('game_started');
       socket.off('quiz_restarted');
+      socket.off('quiz_finished');
       socket.off('error');
     };
   }, [socket, code, user.id, user.name, navigate]);
 
   const handleStartGame = () => {
     if (!socket) return;
-    socket.emit('start_quiz', { roomCode: code });
+    socket.emit('start_quiz', { roomCode: code, userId: user.id  });
   };
 
   const handleRestart = () => {
     if (!socket || !isCreator) return;
     if (!confirm('Перезапустить квиз? Очки будут сброшены.')) return;
     setIsRestarting(true);
-    socket.emit('restart_quiz', { roomCode: code });
+    socket.emit('restart_quiz', { roomCode: code, userId: user.id  });
   };
 
   const handleLogout = () => {
     logout();
     navigate('/login');
   };
+
+  const canStart = isCreator && players.length > 0 && gameState?.status !== 'active' && gameState?.status !== 'finished';
 
   return (
     <div className="flex flex-col items-center justify-center flex-1 p-4">
@@ -116,7 +137,7 @@ const Lobby = () => {
           </div>
         </div>
 
-        {isCreator && players.length > 0 && (
+        {canStart && (
           <button
             onClick={handleStartGame}
             className="btn-primary w-full py-2 text-lg"
