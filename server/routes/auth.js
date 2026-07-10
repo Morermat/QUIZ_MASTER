@@ -2,40 +2,32 @@ const express = require('express');
 const router = express.Router();
 const jwt = require('jsonwebtoken');
 const { v4: uuidv4 } = require('uuid');
-const users = [];
+const { users, ensureStats } = require('../store');
+const { secret } = require('../config');
 
-router.post('/anonymous', async (req, res) => {
-  const { name } = req.body;
+const sign = (user) => jwt.sign({ userId: user.id }, secret, { expiresIn: '7d' });
+
+router.post('/anonymous', (req, res) => {
+  const name = String(req.body.name || '').trim().slice(0, 40);
   if (!name) return res.status(400).json({ error: 'Требуется имя' });
   const user = {
     id: uuidv4(),
     name,
     avatar_url: `https://ui-avatars.com/api/?name=${encodeURIComponent(name)}&background=random&size=128`,
-    is_anonymous: true
+    is_anonymous: true,
+    auth_provider: 'anonymous'
   };
-  users.push(user);
-  const token = jwt.sign({ userId: user.id }, process.env.JWT_SECRET || 'secret_key');
-  res.json({ user, token });
+  users.set(user.id, user);
+  ensureStats(user.id);
+  res.json({ user, token: sign(user) });
 });
 
-router.post('/vk', async (req, res) => {
-  const { code } = req.body;
-  const vk_id = code || 'mock_vk_' + Date.now();
-  let existing = users.find(u => u.vk_id === vk_id);
-  if (existing) {
-    const token = jwt.sign({ userId: existing.id }, process.env.JWT_SECRET || 'secret_key');
-    return res.json({ user: existing, token });
-  }
-  const user = {
-    id: uuidv4(),
-    name: 'VK User',
-    avatar_url: 'https://vk.com/images/avatar_default.jpg',
-    vk_id,
-    is_anonymous: false
-  };
-  users.push(user);
-  const token = jwt.sign({ userId: user.id }, process.env.JWT_SECRET || 'secret_key');
-  res.json({ user, token });
+// Заготовка: фронтенд сможет обменять код VK ID на локальную сессию,
+// когда будет добавлена серверная проверка кода по официальному API VK ID.
+router.post('/vk', (req, res) => {
+  const code = String(req.body.code || '').trim();
+  if (!code) return res.status(400).json({ error: 'Не передан код VK ID' });
+  return res.status(501).json({ error: 'VK ID пока не настроен', provider: 'vk' });
 });
 
 module.exports = router;

@@ -1,7 +1,7 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import axios from 'axios';
+import { api } from '../api';
 
 const Login = () => {
   const [name, setName] = useState('');
@@ -21,9 +21,8 @@ const Login = () => {
     setError('');
     
     try {
-      const res = await axios.post('http://localhost:5000/auth/anonymous', { name });
-      localStorage.setItem('token', res.data.token);
-      login(res.data.user);
+      const res = await api.post('/auth/anonymous', { name });
+      login(res.data.user, res.data.token);
       navigate('/dashboard');
     } catch (err) {
       setError('Ошибка входа: ' + (err.response?.data?.error || err.message));

@@ -4,9 +4,11 @@ const express = require("express");
 const http = require("http");
 const cors = require("cors");
 const { Server } = require("socket.io");
+const { allowedOrigins } = require("./config");
 
 const authRoutes = require("./routes/auth");
 const quizRoutes = require("./routes/quizzes");
+const profileRoutes = require("./routes/profile");
 
 const setupSocket = require("./socket");
 
@@ -15,12 +17,7 @@ const app = express();
 app.disable("x-powered-by");
 
 app.use(cors({
-    origin: process.env.CLIENT_URL
-        ? process.env.CLIENT_URL.split(",")
-        : [
-            "http://localhost:5173",
-            "http://localhost:5174"
-        ],
+    origin: allowedOrigins,
     credentials: true
 }));
 
@@ -43,6 +40,7 @@ app.get("/", (_, res) => {
 
 app.use("/auth", authRoutes);
 app.use("/quizzes", quizRoutes);
+app.use("/profile", profileRoutes);
 
 app.use((req, res) => {
     res.status(404).json({
@@ -61,12 +59,7 @@ const server = http.createServer(app);
 
 const io = new Server(server, {
     cors: {
-        origin: process.env.CLIENT_URL
-            ? process.env.CLIENT_URL.split(",")
-            : [
-                "http://localhost:5173",
-                "http://localhost:5174"
-            ],
+        origin: allowedOrigins,
         credentials: true
     },
     pingInterval: 10000,

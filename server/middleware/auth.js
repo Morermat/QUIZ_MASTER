@@ -1,15 +1,2 @@
-const jwt = require('jsonwebtoken');
-
-module.exports = (req, res, next) => {
-  const token = req.headers.authorization?.split(' ')[1];
-  if (!token) {
-    return res.status(401).json({ error: 'Нет токена' });
-  }
-  try {
-    const decoded = jwt.verify(token, process.env.JWT_SECRET || 'secret_key');
-    req.userId = decoded.userId;
-    next();
-  } catch (error) {
-    res.status(401).json({ error: 'Неверный токен' });
-  }
-};
+const jwt=require('jsonwebtoken'); const {secret}=require('../config'); const {users}=require('../store');
+module.exports=(req,res,next)=>{const token=req.headers.authorization?.split(' ')[1];if(!token)return res.status(401).json({error:'Нет токена',code:'AUTH_REQUIRED'});try{const d=jwt.verify(token,secret);if(!users.has(d.userId))return res.status(401).json({error:'Сессия устарела',code:'USER_NOT_FOUND'});req.userId=d.userId;next()}catch{return res.status(401).json({error:'Неверный токен',code:'INVALID_TOKEN'})}};

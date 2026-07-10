@@ -1,258 +1,75 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import axios from 'axios';
+import { api } from '../api';
 
-const CreateQuiz = () => {
+const blankQuestion = (timeLimit = 30) => ({ text: '', image_url: '', options: ['', '', '', ''], correct: [0], multiple: false, timeLimit });
+
+export default function CreateQuiz() {
   const [title, setTitle] = useState('');
-  const [questions, setQuestions] = useState([
-    { text: '', options: ['', '', '', ''], correct: 0, timeLimit: 30 }
-  ]);
+  const [questions, setQuestions] = useState([blankQuestion()]);
   const [timeLimit, setTimeLimit] = useState(30);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const navigate = useNavigate();
 
-  const addQuestion = () => {
-    setQuestions([...questions, { text: '', options: ['', '', '', ''], correct: 0, timeLimit: timeLimit }]);
+  const patchQ = (i, patch) => setQuestions(qs => qs.map((q, idx) => idx === i ? { ...q, ...patch } : q));
+  const imageToDataUrl = (file, i) => {
+    if (!file) return;
+    if (!file.type.startsWith('image/')) return setError('Можно загружать только изображения');
+    if (file.size > 2 * 1024 * 1024) return setError('Изображение должно быть меньше 2 МБ');
+    const reader = new FileReader(); reader.onload = () => patchQ(i, { image_url: reader.result }); reader.readAsDataURL(file);
+  };
+  const toggleCorrect = (qi, oi) => {
+    const q = questions[qi];
+    if (!q.multiple) return patchQ(qi, { correct: [oi] });
+    const next = q.correct.includes(oi) ? q.correct.filter(x => x !== oi) : [...q.correct, oi];
+    patchQ(qi, { correct: next });
   };
 
-  const removeQuestion = (index) => {
-    if (questions.length > 1) {
-      setQuestions(questions.filter((_, i) => i !== index));
+  const submit = async (e) => {
+    e.preventDefault(); setError('');
+    if (!title.trim()) return setError('Введите название квиза');
+    for (const q of questions) {
+      if (!q.text.trim() || q.options.some(o => !o.trim())) return setError('Заполните вопросы и все варианты ответов');
+      if (!q.correct.length) return setError('У каждого вопроса должен быть правильный ответ');
     }
-  };
-
-  const updateQuestion = (index, value) => {
-    const updated = [...questions];
-    updated[index].text = value;
-    setQuestions(updated);
-  };
-
-  const updateQuestionTime = (index, value) => {
-    const updated = [...questions];
-    updated[index].timeLimit = value;
-    setQuestions(updated);
-  };
-
-  const updateOption = (qIndex, oIndex, value) => {
-    const updated = [...questions];
-    updated[qIndex].options[oIndex] = value;
-    setQuestions(updated);
-  };
-
-  const setCorrectAnswer = (qIndex, oIndex) => {
-    const updated = [...questions];
-    updated[qIndex].correct = oIndex;
-    setQuestions(updated);
-  };
-
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    
-    if (!title.trim()) {
-      setError('Введите название квиза');
-      return;
-    }
-
-    for (let q of questions) {
-      if (!q.text.trim()) {
-        setError('Все вопросы должны быть заполнены');
-        return;
-      }
-      for (let opt of q.options) {
-        if (!opt.trim()) {
-          setError('Все варианты ответов должны быть заполнены');
-          return;
-        }
-      }
-    }
-
     setLoading(true);
-    setError('');
-
     try {
-      const token = localStorage.getItem('token');
-      const formattedQuestions = questions.map(q => ({
-        id: Date.now() + Math.random(),
-        text: q.text,
-        options: q.options.map((opt, idx) => ({
-          id: Date.now() + Math.random() + idx,
-          text: opt,
-          is_correct: idx === q.correct
-        })),
-        timeLimit: q.timeLimit || timeLimit
+      const formatted = questions.map((q, qi) => ({
+        id: `${Date.now()}-${qi}`,
+        text: q.text.trim(), image_url: q.image_url || null, multiple: q.multiple,
+        timeLimit: Number(q.timeLimit) || timeLimit,
+        options: q.options.map((text, oi) => ({ id: `${Date.now()}-${qi}-${oi}`, text: text.trim(), is_correct: q.correct.includes(oi) }))
       }));
-
-      const res = await axios.post(
-        'http://localhost:5000/quizzes',
-        { 
-          title, 
-          questions: formattedQuestions,
-          timeLimit: timeLimit
-        },
-        { headers: { Authorization: `Bearer ${token}` } }
-      );
-      
-      localStorage.setItem('currentQuiz', JSON.stringify({
-        id: res.data.id,
-        title: title,
-        questions: formattedQuestions,
-        timeLimit: timeLimit
-      }));
-
-      navigate(`/lobby/${res.data.code}`);
-    } catch (err) {
-      setError('Ошибка при создании квиза: ' + (err.response?.data?.error || err.message));
-    } finally {
-      setLoading(false);
-    }
+      const { data } = await api.post('/quizzes', { title, questions: formatted, timeLimit });
+      navigate(`/lobby/${data.code}`);
+    } catch (err) { setError(err.response?.data?.error || err.message); }
+    finally { setLoading(false); }
   };
 
-  return (
-    <div className="flex-1 p-4 md:p-8 max-w-4xl mx-auto">
-      <h1 className="text-2xl md:text-3xl font-bold mb-6" style={{ color: 'var(--text-h)' }}>
-        Создание квиза
-      </h1>
-
-      {error && (
-        <div className="mb-4 p-3 rounded text-sm" style={{ background: 'rgba(255,0,0,0.1)', color: '#ef4444', border: '1px solid #ef4444' }}>
-          {error}
+  return <div className="flex-1 p-4 md:p-8 max-w-4xl mx-auto">
+    <h1 className="text-3xl font-bold mb-6">Создание квиза</h1>
+    {error && <div className="mb-4 p-3 rounded border border-red-500 text-red-500">{error}</div>}
+    <form onSubmit={submit}>
+      <input className="w-full px-4 py-2 rounded border bg-[var(--bg)] mb-4" placeholder="Название квиза" value={title} onChange={e=>setTitle(e.target.value)} />
+      <label className="block mb-4">Таймер по умолчанию, сек.
+        <input type="number" min="5" max="300" className="ml-3 px-3 py-2 rounded border bg-[var(--bg)]" value={timeLimit} onChange={e=>setTimeLimit(Number(e.target.value)||30)} />
+      </label>
+      {questions.map((q, qi) => <div key={qi} className="mb-6 p-4 rounded border" style={{borderColor:'var(--border)',background:'var(--code-bg)'}}>
+        <div className="flex justify-between gap-3 mb-3"><b>Вопрос {qi+1}</b><button type="button" onClick={()=>setQuestions(v=>v.filter((_,i)=>i!==qi))} disabled={questions.length===1}>Удалить</button></div>
+        <input className="w-full px-4 py-2 rounded border bg-[var(--bg)] mb-3" placeholder="Текст вопроса" value={q.text} onChange={e=>patchQ(qi,{text:e.target.value})}/>
+        <div className="mb-3">
+          <input type="file" accept="image/*" onChange={e=>imageToDataUrl(e.target.files?.[0],qi)}/>
+          {q.image_url && <div><img src={q.image_url} alt="Предпросмотр" className="mt-2 max-h-48 rounded"/><button type="button" onClick={()=>patchQ(qi,{image_url:''})}>Убрать картинку</button></div>}
         </div>
-      )}
-
-      <form onSubmit={handleSubmit}>
-        <div className="mb-6">
-          <label className="block text-sm font-medium mb-2" style={{ color: 'var(--text)' }}>
-            Название квиза
-          </label>
-          <input
-            type="text"
-            value={title}
-            onChange={(e) => setTitle(e.target.value)}
-            placeholder="Введите название"
-            className="w-full px-4 py-2 rounded border bg-[var(--bg)] text-[var(--text-h)]"
-            style={{ borderColor: 'var(--border)' }}
-            disabled={loading}
-          />
-        </div>
-
-        <div className="mb-6">
-          <label className="block text-sm font-medium mb-2" style={{ color: 'var(--text)' }}>
-            Таймер на вопрос (сек)
-          </label>
-          <input
-            type="number"
-            value={timeLimit}
-            onChange={(e) => setTimeLimit(parseInt(e.target.value) || 30)}
-            className="w-full px-4 py-2 rounded border bg-[var(--bg)] text-[var(--text-h)]"
-            style={{ borderColor: 'var(--border)' }}
-            min="5"
-            max="300"
-            disabled={loading}
-          />
-          <p className="text-xs mt-1" style={{ color: 'var(--text)' }}>
-            Таймер по умолчанию. Для каждого вопроса можно изменить отдельно.
-          </p>
-        </div>
-
-        {questions.map((q, qIndex) => (
-          <div key={qIndex} className="mb-6 p-4 rounded" style={{ background: 'var(--code-bg)', border: '1px solid var(--border)' }}>
-            <div className="flex justify-between items-center mb-3">
-              <h3 className="font-medium" style={{ color: 'var(--text-h)' }}>
-                Вопрос {qIndex + 1}
-              </h3>
-              <div className="flex items-center gap-3">
-                <input
-                  type="number"
-                  value={q.timeLimit || timeLimit}
-                  onChange={(e) => updateQuestionTime(qIndex, parseInt(e.target.value) || timeLimit)}
-                  className="w-20 px-2 py-1 rounded border bg-[var(--bg)] text-[var(--text-h)] text-sm"
-                  style={{ borderColor: 'var(--border)' }}
-                  min="5"
-                  max="300"
-                  disabled={loading}
-                  placeholder="Таймер"
-                />
-                {questions.length > 1 && (
-                  <button
-                    type="button"
-                    onClick={() => removeQuestion(qIndex)}
-                    className="text-sm px-3 py-1 rounded"
-                    style={{ background: 'rgba(255,0,0,0.1)', color: '#ef4444' }}
-                  >
-                    Удалить
-                  </button>
-                )}
-              </div>
-            </div>
-
-            <input
-              type="text"
-              value={q.text}
-              onChange={(e) => updateQuestion(qIndex, e.target.value)}
-              placeholder="Введите вопрос"
-              className="w-full px-4 py-2 rounded border bg-[var(--bg)] text-[var(--text-h)] mb-3"
-              style={{ borderColor: 'var(--border)' }}
-              disabled={loading}
-            />
-
-            <div className="space-y-2">
-              {q.options.map((opt, oIndex) => (
-                <div key={oIndex} className="flex items-center gap-2">
-                  <input
-                    type="radio"
-                    name={`correct-${qIndex}`}
-                    checked={q.correct === oIndex}
-                    onChange={() => setCorrectAnswer(qIndex, oIndex)}
-                    disabled={loading}
-                  />
-                  <input
-                    type="text"
-                    value={opt}
-                    onChange={(e) => updateOption(qIndex, oIndex, e.target.value)}
-                    placeholder={`Вариант ${oIndex + 1}`}
-                    className="flex-1 px-4 py-2 rounded border bg-[var(--bg)] text-[var(--text-h)]"
-                    style={{ borderColor: 'var(--border)' }}
-                    disabled={loading}
-                  />
-                  {q.correct === oIndex && (
-                    <span className="text-sm" style={{ color: '#22c55e' }}>Правильный</span>
-                  )}
-                </div>
-              ))}
-            </div>
-          </div>
-        ))}
-
-        <div className="flex flex-wrap gap-3">
-          <button
-            type="button"
-            onClick={addQuestion}
-            className="btn-secondary px-6 py-2"
-            disabled={loading}
-          >
-            Добавить вопрос
-          </button>
-          <button
-            type="submit"
-            className="btn-primary px-6 py-2"
-            disabled={loading}
-          >
-            {loading ? 'Сохранение...' : 'Сохранить квиз'}
-          </button>
-          <button
-            type="button"
-            onClick={() => navigate('/dashboard')}
-            className="px-6 py-2 rounded"
-            style={{ background: 'var(--code-bg)', color: 'var(--text)' }}
-            disabled={loading}
-          >
-            Отмена
-          </button>
-        </div>
-      </form>
-    </div>
-  );
-};
-
-export default CreateQuiz;
+        <label className="block mb-3"><input type="checkbox" checked={q.multiple} onChange={e=>patchQ(qi,{multiple:e.target.checked,correct:q.correct.slice(0,e.target.checked?undefined:1)})}/> Множественный выбор</label>
+        {q.options.map((opt,oi)=><div key={oi} className="flex gap-2 mb-2 items-center">
+          <input type={q.multiple?'checkbox':'radio'} name={`correct-${qi}`} checked={q.correct.includes(oi)} onChange={()=>toggleCorrect(qi,oi)}/>
+          <input className="flex-1 px-4 py-2 rounded border bg-[var(--bg)]" placeholder={`Вариант ${oi+1}`} value={opt} onChange={e=>patchQ(qi,{options:q.options.map((x,i)=>i===oi?e.target.value:x)})}/>
+        </div>)}
+        <label>Таймер: <input type="number" min="5" max="300" className="w-24 px-2 py-1 rounded border bg-[var(--bg)]" value={q.timeLimit} onChange={e=>patchQ(qi,{timeLimit:Number(e.target.value)||timeLimit})}/></label>
+      </div>)}
+      <div className="flex gap-3 flex-wrap"><button type="button" className="btn-secondary px-5 py-2" onClick={()=>setQuestions(v=>[...v,blankQuestion(timeLimit)])}>Добавить вопрос</button><button className="btn-primary px-5 py-2" disabled={loading}>{loading?'Сохранение...':'Сохранить квиз'}</button><button type="button" onClick={()=>navigate('/dashboard')}>Отмена</button></div>
+    </form>
+  </div>;
+}

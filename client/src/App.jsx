@@ -1,34 +1,3 @@
-import React from 'react';
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
-import { AuthProvider } from './context/AuthContext';
-import { SocketProvider } from './context/SocketContext';
-import Login from './pages/Login';
-import Dashboard from './pages/Dashboard';
-import CreateQuiz from './pages/CreateQuiz';
-import Lobby from './pages/Lobby';
-import GameRoom from './pages/GameRoom';
-import Leaderboard from './pages/Leaderboard';
-
-function App() {
-  return (
-    <AuthProvider>
-      <SocketProvider>
-        <BrowserRouter>
-          <div id="root" className="min-h-screen">
-            <Routes>
-              <Route path="/login" element={<Login />} />
-              <Route path="/dashboard" element={<Dashboard />} />
-              <Route path="/create" element={<CreateQuiz />} />
-              <Route path="/lobby/:code" element={<Lobby />} />
-              <Route path="/game/:code" element={<GameRoom />} />
-              <Route path="/leaderboard/:code" element={<Leaderboard />} />
-              <Route path="/" element={<Navigate to="/dashboard" />} />
-            </Routes>
-          </div>
-        </BrowserRouter>
-      </SocketProvider>
-    </AuthProvider>
-  );
-}
-
-export default App;
+import {BrowserRouter,Routes,Route,Navigate,useLocation} from 'react-router-dom';import {AuthProvider,useAuth} from './context/AuthContext';import {SocketProvider} from './context/SocketContext';import Login from './pages/Login';import Dashboard from './pages/Dashboard';import CreateQuiz from './pages/CreateQuiz';import Lobby from './pages/Lobby';import GameRoom from './pages/GameRoom';import Leaderboard from './pages/Leaderboard';import Profile from './pages/Profile';
+function Guard({children}){const {user}=useAuth(),loc=useLocation();return user?children:<Navigate to="/login" replace state={{from:loc}}/>}
+export default function App(){return <AuthProvider><SocketProvider><BrowserRouter><Routes><Route path="/login" element={<Login/>}/><Route path="/dashboard" element={<Guard><Dashboard/></Guard>}/><Route path="/create" element={<Guard><CreateQuiz/></Guard>}/><Route path="/lobby/:code" element={<Guard><Lobby/></Guard>}/><Route path="/game/:code" element={<Guard><GameRoom/></Guard>}/><Route path="/leaderboard/:code" element={<Guard><Leaderboard/></Guard>}/><Route path="/profile" element={<Guard><Profile/></Guard>}/><Route path="*" element={<Navigate to="/dashboard" replace/>}/></Routes></BrowserRouter></SocketProvider></AuthProvider>}

@@ -1,50 +1,8 @@
-const express = require('express');
-const router = express.Router();
-const { v4: uuidv4 } = require('uuid');
-const auth = require('../middleware/auth');
-const gameLogic = require('../gameLogic');
-
-const quizzes = [];
-const generateCode = () => Math.floor(100000 + Math.random() * 900000).toString();
-
-router.post('/', auth, (req, res) => {
-  const { title, questions, timeLimit } = req.body;
-  const userId = req.userId;
-  const code = generateCode();
-
-  const quiz = {
-    id: uuidv4(),
-    title,
-    code,
-    created_by: userId,
-    status: 'waiting',
-    questions: questions || [],
-    timeLimit: timeLimit || 30
-  };
-
-  quizzes.push(quiz);
-
-  gameLogic.createRoom(code, {
-    title: title,
-    questions: questions || [],
-    timeLimit: timeLimit || 30,
-    creatorId: userId
-  });
-
-  res.json(quiz);
-});
-
-router.get('/', auth, (req, res) => {
-  const userId = req.userId;
-  const userQuizzes = quizzes.filter(q => q.created_by === userId);
-  res.json(userQuizzes);
-});
-
-router.get('/:id', auth, (req, res) => {
-  const { id } = req.params;
-  const quiz = quizzes.find(q => q.id === id);
-  if (!quiz) return res.status(404).json({ error: 'Квиз не найден' });
-  res.json(quiz);
-});
-
-module.exports = router;
+const express=require('express'),router=express.Router();const {v4:uuid}=require('uuid');const auth=require('../middleware/auth'),game=require('../gameLogic');const {quizzes}=require('../store');
+const clamp=(n,min,max,d)=>Number.isFinite(Number(n))?Math.min(max,Math.max(min,Math.round(Number(n)))):d;
+const code=()=>{let c;do c=Math.floor(100000+Math.random()*900000).toString();while(game.getRoom(c));return c};
+function sanitizeQuestions(input,defaultTime){if(!Array.isArray(input)||input.length<1||input.length>100)throw new Error('Количество вопросов: от 1 до 100');return input.map(q=>{const text=String(q.text||'').trim().slice(0,500);if(!text)throw new Error('Пустой текст вопроса');if(!Array.isArray(q.options)||q.options.length<2||q.options.length>8)throw new Error('Вариантов ответа должно быть от 2 до 8');const opts=q.options.map(o=>({id:uuid(),text:String(o.text||'').trim().slice(0,200),is_correct:!!o.is_correct}));if(opts.some(o=>!o.text))throw new Error('Пустой вариант ответа');const correct=opts.filter(o=>o.is_correct).length;if(!correct)throw new Error('У каждого вопроса должен быть правильный ответ');const image=q.image_url?String(q.image_url):null;if(image&&(!/^data:image\/(png|jpeg|jpg|webp|gif);base64,/i.test(image)||image.length>2800000))throw new Error('Недопустимое изображение');return{id:uuid(),text,image_url:image,multiple:!!q.multiple||correct>1,timeLimit:clamp(q.timeLimit,5,300,defaultTime),options:opts}})}
+router.post('/',auth,(req,res)=>{try{const title=String(req.body.title||'').trim().slice(0,120);if(!title)return res.status(400).json({error:'Введите название'});const timeLimit=clamp(req.body.timeLimit,5,300,30),questions=sanitizeQuestions(req.body.questions,timeLimit),roomCode=code();const quiz={id:uuid(),title,code:roomCode,created_by:req.userId,status:'waiting',questions,timeLimit};quizzes.push(quiz);game.createRoom(roomCode,{title,questions,timeLimit,creatorId:req.userId});res.json({...quiz,questions:undefined})}catch(e){res.status(400).json({error:e.message})}});
+router.get('/',auth,(req,res)=>res.json(quizzes.filter(q=>q.created_by===req.userId).map(({questions,...q})=>({...q,questionCount:questions.length}))));
+router.get('/:id',auth,(req,res)=>{const q=quizzes.find(x=>x.id===req.params.id);if(!q)return res.status(404).json({error:'Квиз не найден'});if(q.created_by!==req.userId)return res.status(403).json({error:'Нет доступа'});res.json(q)});
+module.exports=router;

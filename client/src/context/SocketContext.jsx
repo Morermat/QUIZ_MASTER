@@ -1,27 +1,6 @@
-import React, { createContext, useContext, useEffect, useRef, useState } from 'react';
-import { io } from 'socket.io-client';
-
-const SocketContext = createContext(null);
-
-export const SocketProvider = ({ children }) => {
-  const [socket, setSocket] = useState(null);
-  const socketRef = useRef(null);
-
-  useEffect(() => {
-    const newSocket = io('http://localhost:5000');
-    socketRef.current = newSocket;
-    setSocket(newSocket);
-
-    return () => {
-      newSocket.disconnect();
-    };
-  }, []);
-
-  return (
-    <SocketContext.Provider value={socket}>
-      {children}
-    </SocketContext.Provider>
-  );
-};
-
-export const useSocket = () => useContext(SocketContext);
+import {createContext,useContext,useEffect,useMemo,useRef,useState} from 'react';import {io} from 'socket.io-client';import {useAuth} from './AuthContext';
+const C=createContext({socket:null,status:'disconnected'}),URL=import.meta.env.VITE_API_URL||'http://localhost:5000';
+export function SocketProvider({children}){const {user,token,logout}=useAuth();const [socket,setSocket]=useState(null),[status,setStatus]=useState('disconnected');const ref=useRef(null);const tabId=useMemo(()=>{let x=sessionStorage.getItem('tabId');if(!x){x=crypto.randomUUID();sessionStorage.setItem('tabId',x)}return x},[]);
+ useEffect(()=>{if(ref.current){ref.current.removeAllListeners();ref.current.disconnect();ref.current=null}setSocket(null);setStatus('disconnected');if(!user||!token)return;const s=io(URL,{auth:{token,tabId},transports:['websocket','polling'],reconnection:true});ref.current=s;setSocket(s);setStatus('connecting');s.on('connect',()=>setStatus('connected'));s.on('disconnect',()=>setStatus('disconnected'));s.on('reconnect_attempt',()=>setStatus('connecting'));s.on('connect_error',e=>{setStatus('error');if(['USER_NOT_FOUND','INVALID_TOKEN','AUTH_REQUIRED'].includes(e.message))logout()});return()=>{s.removeAllListeners();s.disconnect();if(ref.current===s)ref.current=null}},[user,token,tabId,logout]);
+ return <C.Provider value={{socket,status}}>{children}</C.Provider>}
+export const useSocket=()=>useContext(C);
