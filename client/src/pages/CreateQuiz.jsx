@@ -9,7 +9,6 @@ import {
   useSensor,
   useSensors,
   DragOverlay,
-  defaultDropAnimationSideEffects,
 } from '@dnd-kit/core';
 import {
   arrayMove,
@@ -21,19 +20,19 @@ import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { restrictToVerticalAxis } from '@dnd-kit/modifiers';
 
-const blankQuestion = (timeLimit = 30) => ({
+const blankQuestion = (timeLimit = 30, timerEnabled = true) => ({
   text: '',
   image_url: '',
   options: ['', '', '', ''],
   correct: [0],
   multiple: false,
-  timeLimit,
+  timeLimit: timerEnabled ? timeLimit : null,
   scoringType: 'exact'
 });
 
-function QuestionContent({ question, index, isDragOverlay = false }) {
+function QuestionContent({ question, index }) {
   return (
-    <div className={`p-4 rounded border ${isDragOverlay ? 'shadow-lg opacity-90' : ''}`} style={{borderColor:'var(--border)', background: isDragOverlay ? 'var(--bg)' : 'var(--code-bg)'}}>
+    <div className="p-4 rounded border shadow-lg bg-white dark:bg-gray-800">
       <div className="flex justify-between items-center gap-3 mb-3">
         <b>Вопрос {index + 1}</b>
         <span className="text-gray-400">⠿</span>
@@ -48,7 +47,7 @@ function QuestionContent({ question, index, isDragOverlay = false }) {
   );
 }
 
-function SortableQuestion({ question, index, onUpdate, onDelete, timeLimit, isOnly, isOverlay }) {
+function SortableQuestion({ question, index, onUpdate, onDelete, timeLimit, timerEnabled, isOnly }) {
   const {
     attributes,
     listeners,
@@ -63,7 +62,6 @@ function SortableQuestion({ question, index, onUpdate, onDelete, timeLimit, isOn
     transition: isDragging ? 'none' : 'transform 200ms ease',
     opacity: isDragging ? 0.4 : 1,
     zIndex: isDragging ? 999 : 'auto',
-    position: 'relative',
   };
 
   const patchQ = (patch) => onUpdate(index, patch);
@@ -94,10 +92,6 @@ function SortableQuestion({ question, index, onUpdate, onDelete, timeLimit, isOn
       patchQ({ options: newOptions, correct: newCorrect });
     }
   };
-
-  if (isOverlay) {
-    return <QuestionContent question={question} index={index} isDragOverlay />;
-  }
 
   return (
     <div ref={setNodeRef} style={style} className="mb-4 p-4 rounded border" style={{borderColor: isDragging ? 'var(--accent)' : 'var(--border)', background:'var(--code-bg)'}}>
@@ -188,7 +182,7 @@ function SortableQuestion({ question, index, onUpdate, onDelete, timeLimit, isOn
         </button>
         <span className="text-xs text-gray-400">({question.options.length}/8)</span>
       </div>
-      <label className="text-sm">Таймер: <input type="number" min="5" max="300" className="w-20 px-2 py-1 rounded border bg-[var(--bg)]" value={question.timeLimit} onChange={e => patchQ({ timeLimit: Number(e.target.value) || timeLimit })} onPointerDown={(e) => e.stopPropagation()} /></label>
+      <label className="text-sm">Таймер: <input type="number" min="5" max="300" className="w-20 px-2 py-1 rounded border bg-[var(--bg)]" value={question.timeLimit || timeLimit} onChange={e => patchQ({ timeLimit: Number(e.target.value) || timeLimit })} onPointerDown={(e) => e.stopPropagation()} disabled={!timerEnabled} /></label>
     </div>
   );
 }
@@ -197,6 +191,7 @@ export default function CreateQuiz() {
   const [title, setTitle] = useState('');
   const [questions, setQuestions] = useState([{ ...blankQuestion(), id: Date.now() }]);
   const [timeLimit, setTimeLimit] = useState(30);
+  const [timerEnabled, setTimerEnabled] = useState(true);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const navigate = useNavigate();
@@ -209,10 +204,7 @@ export default function CreateQuiz() {
     })
   );
 
-  const handleDragStart = (event) => {
-    setActiveId(event.active.id);
-  };
-
+  const handleDragStart = (event) => setActiveId(event.active.id);
   const handleDragEnd = (event) => {
     const { active, over } = event;
     setActiveId(null);
@@ -222,13 +214,10 @@ export default function CreateQuiz() {
       setQuestions(arrayMove(questions, oldIndex, newIndex));
     }
   };
-
-  const handleDragCancel = () => {
-    setActiveId(null);
-  };
+  const handleDragCancel = () => setActiveId(null);
 
   const addQuestion = () => {
-    setQuestions([...questions, { ...blankQuestion(timeLimit), id: Date.now() + Math.random() }]);
+    setQuestions([...questions, { ...blankQuestion(timeLimit, timerEnabled), id: Date.now() + Math.random() }]);
   };
 
   const deleteQuestion = (index) => {
@@ -256,7 +245,7 @@ export default function CreateQuiz() {
         text: q.text.trim(),
         image_url: q.image_url || null,
         multiple: q.multiple,
-        timeLimit: Number(q.timeLimit) || timeLimit,
+        timeLimit: timerEnabled ? (Number(q.timeLimit) || timeLimit) : null,
         scoringType: q.scoringType || 'exact',
         options: q.options.map((text, oi) => ({
           id: `${Date.now()}-${qi}-${oi}`,
@@ -264,7 +253,7 @@ export default function CreateQuiz() {
           is_correct: q.correct.includes(oi)
         }))
       }));
-      const { data } = await api.post('/quizzes', { title, questions: formatted, timeLimit });
+      const { data } = await api.post('/quizzes', { title, questions: formatted, timeLimit: timerEnabled ? timeLimit : null });
       navigate(`/lobby/${data.code}`);
     } catch (err) {
       setError(err.response?.data?.error || err.message);
@@ -281,9 +270,18 @@ export default function CreateQuiz() {
       {error && <div className="mb-4 p-3 rounded border border-red-500 text-red-500">{error}</div>}
       <form onSubmit={submit}>
         <input className="w-full px-4 py-2 rounded border bg-[var(--bg)] mb-4" placeholder="Название квиза" value={title} onChange={e => setTitle(e.target.value)} />
-        <label className="block mb-4">Таймер по умолчанию, сек.
-          <input type="number" min="5" max="300" className="ml-3 px-3 py-2 rounded border bg-[var(--bg)]" value={timeLimit} onChange={e => setTimeLimit(Number(e.target.value) || 30)} />
-        </label>
+        
+        <div className="flex items-center gap-4 mb-4">
+          <label className="flex items-center gap-2">
+            <input type="checkbox" checked={timerEnabled} onChange={e => setTimerEnabled(e.target.checked)} />
+            Включить таймер на вопросы
+          </label>
+          <label className="flex items-center gap-2">
+            Таймер по умолчанию, сек.
+            <input type="number" min="5" max="300" className="px-3 py-2 rounded border bg-[var(--bg)] w-24" value={timeLimit} onChange={e => setTimeLimit(Number(e.target.value) || 30)} disabled={!timerEnabled} />
+          </label>
+        </div>
+
         <DndContext
           sensors={sensors}
           collisionDetection={closestCenter}
@@ -301,16 +299,16 @@ export default function CreateQuiz() {
                 onUpdate={updateQuestion}
                 onDelete={deleteQuestion}
                 timeLimit={timeLimit}
+                timerEnabled={timerEnabled}
                 isOnly={questions.length === 1}
               />
             ))}
           </SortableContext>
           <DragOverlay>
-            {activeQuestion ? (
-              <QuestionContent question={activeQuestion} index={questions.findIndex(q => q.id === activeQuestion.id)} isDragOverlay />
-            ) : null}
+            {activeQuestion ? <QuestionContent question={activeQuestion} index={questions.findIndex(q => q.id === activeQuestion.id)} /> : null}
           </DragOverlay>
         </DndContext>
+
         <div className="flex gap-3 flex-wrap">
           <button type="button" className="btn-secondary px-5 py-2" onClick={addQuestion}>Добавить вопрос</button>
           <button className="btn-primary px-5 py-2" disabled={loading}>{loading ? 'Сохранение...' : 'Сохранить квиз'}</button>

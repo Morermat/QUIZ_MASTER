@@ -16,6 +16,15 @@ io.on('connection',socket=>{const user=socket.data.user;addPresence(user.id,sock
   socket.emit('game_state', state);
   ack?.({ ok: true, state });
 });
+socket.on('next_question', ({ roomCode } = {}, ack) => {
+  const code = String(roomCode || '');
+  const state = game.getGameState(code, user.id);
+  if (!state?.isOrganizer) {
+    return ack?.({ ok: false, error: 'Только организатор может переключать вопросы' });
+  }
+  game.advanceQuiz(code, io);
+  ack?.({ ok: true });
+});
 socket.on('start_quiz',({roomCode}={},ack)=>{const code=String(roomCode||'');const s=game.getGameState(code,user.id);if(!s?.isOrganizer)return ackError(ack,'Только организатор может начать игру');const r=game.startQuiz(code,io);if(r.error)return ackError(ack,r.error);ack?.({ok:true})});
  socket.on('submit_answer',({roomCode,questionId,optionIds,optionId}={},ack)=>{const r=game.submitAnswer(String(roomCode||''),user.id,questionId,optionIds??optionId,io);if(r.error)return ackError(ack,r.error);socket.emit('answer_result',r);ack?.({ok:true,result:r})});
  socket.on('restart_quiz',({roomCode}={},ack)=>{const code=String(roomCode||'');const s=game.getGameState(code,user.id);if(!s?.isOrganizer)return ackError(ack,'Только организатор может перезапустить игру');const r=game.restartQuiz(code,io);if(r.error)return ackError(ack,r.error);ack?.({ok:true})});
