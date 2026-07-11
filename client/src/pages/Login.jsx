@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { api } from '../api';
+import VKLoginButton from '../components/VKLoginButton';
 
 const Login = () => {
   const [name, setName] = useState('');
@@ -31,9 +32,10 @@ const Login = () => {
     }
   };
 
-  const handleVKLogin = () => {
-    alert('VK вход в разработке');
-  };
+  const handleVKSuccess = (data) => {
+  login(data.user, data.token);
+  navigate('/dashboard');
+};
 
   return (
     <div className="flex flex-col items-center justify-center min-h-[80vh] px-4">
@@ -85,13 +87,7 @@ const Login = () => {
             </div>
           </div>
           
-          <button
-            onClick={handleVKLogin}
-            className="w-full py-2 rounded transition text-white font-medium"
-            style={{ background: '#4a76a8' }}
-          >
-            Войти через VK ID
-          </button>
+          <VKLoginButton onSuccess={handleVKSuccess} onError={(err) => setError('VK ошибка: ' + err.message)} />
         </div>
       </div>
     </div>

@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const jwt = require('jsonwebtoken');
 const { v4: uuidv4 } = require('uuid');
+const axios = require('axios');
 const { users, ensureStats } = require('../store');
 const { secret } = require('../config');
 
@@ -22,12 +23,81 @@ router.post('/anonymous', (req, res) => {
   res.json({ user, token: sign(user) });
 });
 
-// Заготовка: фронтенд сможет обменять код VK ID на локальную сессию,
-// когда будет добавлена серверная проверка кода по официальному API VK ID.
-router.post('/vk', (req, res) => {
-  const code = String(req.body.code || '').trim();
-  if (!code) return res.status(400).json({ error: 'Не передан код VK ID' });
-  return res.status(501).json({ error: 'VK ID пока не настроен', provider: 'vk' });
+router.post('/vk', async (req, res) => {
+  const { code, device_id } = req.body;
+  if (!code) {
+    return res.status(400).json({ error: 'Не передан код' });
+  }
+
+  const clientId = process.env.VK_CLIENT_ID || '54674075';
+  const clientSecret = process.env.VK_CLIENT_SECRET;
+  const redirectUri = process.env.VK_REDIRECT_URI || 'http://localhost/auth/vk-callback';
+
+  const params = new URLSearchParams({
+    grant_type: 'authorization_code',
+    code: code,
+    client_id: clientId,
+    client_secret: clientSecret,
+    redirect_uri: redirectUri,
+    device_id: device_id || '',
+  });
+
+  try {
+    const tokenResponse = await axios.post('https://id.vk.com/oauth2/auth', params.toString(), {
+      headers: {
+        'Content-Type': 'application/x-www-form-urlencoded',
+      },
+    });
+
+    const tokenData = tokenResponse.data;
+    if (!tokenData.access_token) {
+      throw new Error('Не удалось получить access_token');
+    }
+
+    const userInfoResponse = await axios.post('https://id.vk.com/oauth2/user_info',
+      new URLSearchParams({
+        client_id: clientId,
+        access_token: tokenData.access_token,
+      }),
+      {
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded',
+        },
+      }
+    );
+
+    const vkUser = userInfoResponse.data.user;
+    if (!vkUser) {
+      throw new Error('Не удалось получить данные пользователя');
+    }
+
+    let user = [...users.values()].find(u => u.vk_id === String(vkUser.user_id));
+    if (!user) {
+      user = {
+        id: uuidv4(),
+        name: `${vkUser.first_name} ${vkUser.last_name}`.trim(),
+        avatar_url: vkUser.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(vkUser.first_name || 'User')}&background=random&size=128`,
+        vk_id: String(vkUser.user_id),
+        is_anonymous: false,
+        auth_provider: 'vk',
+        email: vkUser.email || null,
+        phone: vkUser.phone || null,
+      };
+      users.set(user.id, user);
+      ensureStats(user.id);
+    } else {
+      user.name = `${vkUser.first_name} ${vkUser.last_name}`.trim() || user.name;
+      user.avatar_url = vkUser.avatar || user.avatar_url;
+      if (vkUser.email) user.email = vkUser.email;
+      if (vkUser.phone) user.phone = vkUser.phone;
+    }
+
+    const token = sign(user);
+    res.json({ user, token });
+  } catch (err) {
+    console.error('VK auth error:', err.response?.data || err.message);
+    res.status(500).json({ error: 'Ошибка авторизации через VK: ' + (err.response?.data?.error_description || err.message) });
+  }
 });
 
 module.exports = router;
