@@ -4,10 +4,10 @@ const { users, ensureStats, saveUser } = require('../store');
 const rooms = require('../rooms');
 const router = express.Router();
 
-router.get('/', auth, (req, res) => {
+router.get('/', auth, async (req, res) => {
   const user = users.get(req.userId);
   if (!user) return res.status(404).json({ error: 'Пользователь не найден' });
-  const stats = ensureStats(req.userId);
+  const stats = await ensureStats(req.userId);
   const correctPercent = stats.totalAnswers ? Math.round((stats.correctAnswers / stats.totalAnswers) * 100) : 0;
   res.json({ user, stats: { ...stats, correctPercent } });
 });
