@@ -24,40 +24,18 @@ router.post('/anonymous', (req, res) => {
 });
 
 router.post('/vk', async (req, res) => {
-  const { code, device_id } = req.body;
-  if (!code) {
-    return res.status(400).json({ error: 'Не передан код' });
+  const { access_token, user_id } = req.body;
+  if (!access_token) {
+    return res.status(400).json({ error: 'Не передан access_token' });
   }
 
   const clientId = process.env.VK_CLIENT_ID || '54674075';
-  const clientSecret = process.env.VK_CLIENT_SECRET;
-  const redirectUri = process.env.VK_REDIRECT_URI || 'http://localhost/auth/vk-callback';
-
-  const params = new URLSearchParams({
-    grant_type: 'authorization_code',
-    code: code,
-    client_id: clientId,
-    client_secret: clientSecret,
-    redirect_uri: redirectUri,
-    device_id: device_id || '',
-  });
 
   try {
-    const tokenResponse = await axios.post('https://id.vk.com/oauth2/auth', params.toString(), {
-      headers: {
-        'Content-Type': 'application/x-www-form-urlencoded',
-      },
-    });
-
-    const tokenData = tokenResponse.data;
-    if (!tokenData.access_token) {
-      throw new Error('Не удалось получить access_token');
-    }
-
     const userInfoResponse = await axios.post('https://id.vk.com/oauth2/user_info',
       new URLSearchParams({
         client_id: clientId,
-        access_token: tokenData.access_token,
+        access_token: access_token,
       }),
       {
         headers: {
