@@ -37,17 +37,14 @@ function sanitizeQuestions(input, defaultTime) {
     if (opts.some(o => !o.text)) throw new Error('Пустой вариант ответа');
     const correct = opts.filter(o => o.is_correct).length;
     if (!correct) throw new Error('У каждого вопроса должен быть правильный ответ');
-    
     const image = q.image_url ? String(q.image_url) : null;
     if (image && (!/^data:image\/(png|jpeg|jpg|webp|gif);base64,/i.test(image) || image.length > 2800000)) {
       throw new Error('Недопустимое изображение');
     }
-    
     const scoringType = q.scoringType || 'exact';
     const timeLimit = q.timeLimit !== null && q.timeLimit !== undefined 
       ? clampOrNull(q.timeLimit, 5, 300, defaultTime)
       : null;
-    
     return {
       id: uuid(),
       text,
@@ -64,15 +61,12 @@ router.post('/', auth, (req, res) => {
   try {
     const title = String(req.body.title || '').trim().slice(0, 120);
     if (!title) return res.status(400).json({ error: 'Введите название' });
-    
     let timeLimit = req.body.timeLimit !== undefined ? req.body.timeLimit : 30;
     if (timeLimit !== null) {
       timeLimit = clampOrNull(timeLimit, 5, 300, 30);
     }
-    
     const questions = sanitizeQuestions(req.body.questions, timeLimit);
     const roomCode = code();
-    
     const quiz = {
       id: uuid(),
       title,
