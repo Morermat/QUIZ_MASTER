@@ -11,15 +11,14 @@ export default function VKLoginButton({ onSuccess, onError }) {
         return;
       }
 
-      const redirectUri = import.meta.env.VITE_VK_REDIRECT_URI || 'https://abc123.loca.lt/auth/vk-callback';
+      const redirectUri = import.meta.env.VITE_VK_REDIRECT_URI || 'https://quiz-master-1-3jyk.onrender.com/auth/vk-callback';
 
       VKID.Config.init({
         app: Number(import.meta.env.VITE_VK_CLIENT_ID) || 54674075,
         redirectUrl: redirectUri,
-        responseMode: VKID.ConfigResponseMode.Redirect,
+        responseMode: VKID.ConfigResponseMode.Callback,
         source: VKID.ConfigSource.LOWCODE,
         scope: 'email vkid.personal_info',
-        mode: VKID.ConfigAuthMode.Redirect,
       });
 
       const oneTap = new VKID.OneTap();
