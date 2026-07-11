@@ -1,5 +1,14 @@
 require("dotenv").config();
+const { loadUsers } = require('./store');
 
+(async () => {
+  try {
+    await loadUsers();
+    console.log('Users loaded from DB');
+  } catch (err) {
+    console.error('Failed to load users from DB:', err.message);
+  }
+})();
 const express = require("express");
 const http = require("http");
 const cors = require("cors");
