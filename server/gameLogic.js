@@ -69,7 +69,7 @@ function publicQuestion(question, reveal = false) {
     text: question.text,
     image_url: question.image_url || null,
     multiple: question.multiple === true || question.options.filter(o => o.is_correct).length > 1,
-    timeLimit: question.timeLimit, // может быть null
+    timeLimit: question.timeLimit,
     options: question.options.map(o => ({
       id: o.id,
       text: o.text,
@@ -166,9 +166,9 @@ function scheduleAdvance(code, io, delay = 900) {
   if (!room || room.advancePending) return;
   room.advancePending = true;
   clearTimeout(room.timer);
-  room.timer = setTimeout(() => {
+  room.timer = setTimeout(async () => {
     room.advancePending = false;
-    advanceQuiz(code, io);
+    await advanceQuiz(code, io);
   }, delay);
 }
 
@@ -286,9 +286,10 @@ function submitAnswer(code, userId, questionId, optionIds, io) {
     points: points
   };
 
-  const stats = ensureStats(userId);
-  stats.totalAnswers++;
-  if (exact) stats.correctAnswers++;
+  ensureStats(userId).then(stats => {
+    stats.totalAnswers++;
+    if (exact) stats.correctAnswers++;
+  }).catch(console.error);
 
   const allAnswered = [...room.players.keys()].every(id => room.answered[id]);
   if (allAnswered) scheduleAdvance(code, io);
@@ -300,7 +301,7 @@ function submitAnswer(code, userId, questionId, optionIds, io) {
   };
 }
 
-function saveResults(room, code) {
+async function saveResults(room, code) {
   if (room.resultSaved) return;
   
   for (const id of room.players.keys()) {
@@ -313,19 +314,23 @@ function saveResults(room, code) {
   const topScore = board[0]?.score;
   
   for (const player of board) {
-    const stats = ensureStats(player.user_id);
-    stats.gamesPlayed++;
-    const isWinner = player.score === topScore;
-    if (isWinner) stats.wins++;
-    stats.history.unshift({
-      roomCode: code,
-      quizTitle: room.quizTitle,
-      date: new Date().toISOString(),
-      score: player.score,
-      place: player.place,
-      won: isWinner
-    });
-    stats.history = stats.history.slice(0, 50);
+    try {
+      const stats = await ensureStats(player.user_id);
+      stats.gamesPlayed++;
+      const isWinner = player.score === topScore;
+      if (isWinner) stats.wins++;
+      stats.history.unshift({
+        roomCode: code,
+        quizTitle: room.quizTitle,
+        date: new Date().toISOString(),
+        score: player.score,
+        place: player.place,
+        won: isWinner
+      });
+      stats.history = stats.history.slice(0, 50);
+    } catch (err) {
+      console.error('Error saving stats for user', player.user_id, err);
+    }
   }
   
   room._leaderboardCache = board;
@@ -333,7 +338,7 @@ function saveResults(room, code) {
   room.resultSaved = true;
 }
 
-function advanceQuiz(code, io) {
+async function advanceQuiz(code, io) {
   const room = rooms[code];
   if (!room || room.status !== 'active') return;
   
@@ -353,7 +358,7 @@ function advanceQuiz(code, io) {
       }
     }
     
-    saveResults(room, code);
+    await saveResults(room, code);
     const board = room._leaderboardCache || leaderboard(room);
     io.to(code).emit('leaderboard', { players: board });
     io.to(code).emit('quiz_finished');
