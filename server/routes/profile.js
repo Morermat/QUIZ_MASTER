@@ -3,6 +3,7 @@ const auth = require('../middleware/auth');
 const { users, ensureStats } = require('../store');
 const rooms = require('../rooms');
 const router = express.Router();
+const { users, ensureStats, saveUser } = require('../store');
 
 router.get('/', auth, (req, res) => {
   const user = users.get(req.userId);
@@ -21,6 +22,7 @@ router.patch('/', auth, (req, res) => {
   if (avatar.length > 1_500_000) return res.status(400).json({ error: 'Аватар слишком большой' });
   Object.assign(user, { name: name || user.name, avatar_url: avatar });
   for (const room of Object.values(rooms)) { const p = room.players?.get(req.userId); if (p) room.players.set(req.userId, { ...p, name: user.name, avatar_url: user.avatar_url }); }
+  await saveUser(user);
   res.json({ user });
 });
 

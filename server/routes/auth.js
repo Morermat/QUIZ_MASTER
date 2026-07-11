@@ -3,12 +3,12 @@ const router = express.Router();
 const jwt = require('jsonwebtoken');
 const { v4: uuidv4 } = require('uuid');
 const axios = require('axios');
-const { users, ensureStats } = require('../store');
+const { users, ensureStats, saveUser } = require('../store');
 const { secret } = require('../config');
 
 const sign = (user) => jwt.sign({ userId: user.id }, secret, { expiresIn: '7d' });
 
-router.post('/anonymous', (req, res) => {
+router.post('/anonymous', async (req, res) => {
   const name = String(req.body.name || '').trim().slice(0, 40);
   if (!name) return res.status(400).json({ error: 'Требуется имя' });
   const user = {
@@ -16,10 +16,15 @@ router.post('/anonymous', (req, res) => {
     name,
     avatar_url: `https://ui-avatars.com/api/?name=${encodeURIComponent(name)}&background=random&size=128`,
     is_anonymous: true,
-    auth_provider: 'anonymous'
+    auth_provider: 'anonymous',
+    win_icon: 'default.gif',
+    win_music: 'default.mp3',
+    vk_id: null,
+    email: null,
+    phone: null,
   };
-  users.set(user.id, user);
-  ensureStats(user.id);
+  await saveUser(user);
+  await ensureStats(user.id);
   res.json({ user, token: sign(user) });
 });
 
@@ -60,14 +65,19 @@ router.post('/vk', async (req, res) => {
         auth_provider: 'vk',
         email: vkUser.email || null,
         phone: vkUser.phone || null,
+        win_icon: 'default.gif',
+        win_music: 'default.mp3',
       };
-      users.set(user.id, user);
-      ensureStats(user.id);
+      await saveUser(user);
+      await ensureStats(user.id);
     } else {
       user.name = `${vkUser.first_name} ${vkUser.last_name}`.trim() || user.name;
       user.avatar_url = vkUser.avatar || user.avatar_url;
       if (vkUser.email) user.email = vkUser.email;
       if (vkUser.phone) user.phone = vkUser.phone;
+      if (!user.win_icon) user.win_icon = 'default.gif';
+      if (!user.win_music) user.win_music = 'default.mp3';
+      await saveUser(user);
     }
 
     const token = sign(user);

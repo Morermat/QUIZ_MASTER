@@ -5,6 +5,14 @@ const http = require("http");
 const cors = require("cors");
 const { Server } = require("socket.io");
 const { allowedOrigins } = require("./config");
+const { loadUsers } = require('./store');
+(async () => {
+  try {
+    await loadUsers();
+  } catch (err) {
+    console.error('Failed to load users from DB:', err.message);
+  }
+})();
 
 const authRoutes = require("./routes/auth");
 const quizRoutes = require("./routes/quizzes");
