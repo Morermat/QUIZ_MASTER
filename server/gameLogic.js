@@ -27,7 +27,9 @@ function createRoom(roomCode, quizData) {
     timer: null,
     advancePending: false,
     resultSaved: false,
-    _leaderboardCache: null
+    _leaderboardCache: null,
+    _questionHistory: null,
+    _questionHistoryCache: null
   };
 }
 
@@ -134,7 +136,8 @@ function getGameState(roomCode, userId) {
     quizTitle: room.quizTitle,
     creatorId: room.creatorId,
     organizers: [...room.organizers],
-    leaderboard: leaderboardData
+    leaderboard: leaderboardData,
+    questionHistory: room.organizers.has(userId) ? (room._questionHistoryCache || room._questionHistory || null) : null
   };
 }
 
@@ -177,6 +180,8 @@ function startQuiz(code, io) {
   room.answered = {};
   room.participated = new Set();
   room._leaderboardCache = null;
+  room._questionHistory = {};
+  room._questionHistoryCache = null;
   
   for (const id of room.players.keys()) {
     room.scores[id] = 0;
@@ -226,17 +231,16 @@ function submitAnswer(code, userId, questionId, optionIds, io) {
 
   const scoringType = question.scoringType || 'exact';
   let points = 0;
-  console.log('[submitAnswer] scoringType:', question.scoringType);
-  console.log('[submitAnswer] correct:', correct);
-  console.log('[submitAnswer] selected:', selected);
+  
   if (scoringType === 'exact') {
     points = exact ? 1 : 0;
   } else if (scoringType === 'partial') {
-  points = exact ? 1 : Math.max(0, (correctSelected - wrongSelected) / correct.length);
+    const raw = (correctSelected - wrongSelected) / correct.length;
+    points = Math.max(0, Math.min(1, raw));
   } else if (scoringType === 'perCorrect') {
     points = correctSelected * (1 / correct.length);
   }
-  console.log('[submitAnswer] points:', points);
+
   room.scores[userId] = (room.scores[userId] || 0) + points;
   room.answered[userId] = true;
   room.answers[userId] = {
@@ -246,6 +250,21 @@ function submitAnswer(code, userId, questionId, optionIds, io) {
     points: points
   };
   room.participated.add(userId);
+
+  if (!room._questionHistory) {
+    room._questionHistory = {};
+  }
+  if (!room._questionHistory[question.id]) {
+    room._questionHistory[question.id] = {
+      questionText: question.text,
+      answers: {}
+    };
+  }
+  room._questionHistory[question.id].answers[userId] = {
+    optionIds: selected,
+    isCorrect: exact,
+    points: points
+  };
 
   const stats = ensureStats(userId);
   stats.totalAnswers++;
@@ -290,6 +309,7 @@ function saveResults(room, code) {
   }
   
   room._leaderboardCache = board;
+  room._questionHistoryCache = room._questionHistory || null;
   room.resultSaved = true;
 }
 
@@ -351,6 +371,8 @@ function restartQuiz(code, io) {
   room.advancePending = false;
   room.resultSaved = false;
   room._leaderboardCache = null;
+  room._questionHistory = null;
+  room._questionHistoryCache = null;
   for (const id of room.players.keys()) {
     room.scores[id] = 0;
     room.answered[id] = false;
