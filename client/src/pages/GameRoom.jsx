@@ -13,6 +13,7 @@ export default function GameRoom() {
   const [result,setResult]=useState(null);
   const [error,setError]=useState('');
   const [now,setNow]=useState(()=>Date.now());
+  const isOrganizer = state?.isOrganizer || false;
 
   useEffect(()=>{
     if(!socket) return;
@@ -50,7 +51,6 @@ export default function GameRoom() {
     };
   }, [socket, code, nav]);
 
-  // Таймер
   useEffect(()=>{
     const t = setInterval(() => setNow(Date.now()), 250);
     return () => clearInterval(t);
@@ -58,8 +58,8 @@ export default function GameRoom() {
 
   const q = state?.currentQuestion;
   const timeLeft = state?.questionEndsAt
-    ? Math.max(0, Math.ceil((state.questionEndsAt - now) / 1000))
-    : state?.timeLeft ?? 0;
+  ? Math.max(0, Math.ceil((state.questionEndsAt - now) / 1000))
+  : (state?.timeLeft !== null && state?.timeLeft !== undefined ? state.timeLeft : '∞');
   const answered = state?.hasAnswered || !!result;
 
   const toggle = (id) => {
@@ -89,7 +89,7 @@ export default function GameRoom() {
     <div className="max-w-2xl mx-auto p-6">
       <div className="flex justify-between mb-4">
         <span>{user.name}</span>
-        <span>{timeLeft} сек.</span>
+        <span>{timeLeft === '∞' ? '∞' : `${timeLeft} сек.`}</span>
       </div>
       {error && <div className="text-red-500 mb-3">{error}</div>}
       <div className="p-6 rounded border" style={{borderColor:'var(--border)',background:'var(--code-bg)'}}>
@@ -121,6 +121,14 @@ export default function GameRoom() {
             Ответить
           </button>
         )}
+        {isOrganizer && timeLeft === '∞' && (
+  <button
+    className="btn-secondary w-full mt-4 py-2"
+    onClick={() => socket.emit('next_question', { roomCode: code })}
+  >
+    Следующий вопрос
+  </button>
+)}
         {result && (
           <div className="mt-4">
             <b>{result.isCorrect ? 'Правильно' : 'Ответ принят'}</b> — {result.points} балла

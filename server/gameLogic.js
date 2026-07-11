@@ -7,11 +7,12 @@ const normalizeIds = (ids) => [...new Set((Array.isArray(ids) ? ids : [ids]).fil
 function getRoom(code) { return rooms[code] || null; }
 
 function createRoom(roomCode, quizData) {
+  const timeLimit = quizData.timeLimit !== undefined ? quizData.timeLimit : 30;
   rooms[roomCode] = {
     quizTitle: quizData.title,
     questions: clone(quizData.questions),
     originalQuestions: clone(quizData.questions),
-    timeLimit: quizData.timeLimit || 30,
+    timeLimit: timeLimit,
     creatorId: quizData.creatorId,
     organizers: new Set([quizData.creatorId]),
     players: new Map(),
@@ -68,7 +69,7 @@ function publicQuestion(question, reveal = false) {
     text: question.text,
     image_url: question.image_url || null,
     multiple: question.multiple === true || question.options.filter(o => o.is_correct).length > 1,
-    timeLimit: question.timeLimit,
+    timeLimit: question.timeLimit, // может быть null
     options: question.options.map(o => ({
       id: o.id,
       text: o.text,
@@ -100,10 +101,18 @@ function getGameState(roomCode, userId) {
   const room = rooms[roomCode];
   if (!room) return null;
   const question = room.questions[room.currentQuestionIndex] || null;
-  const limit = question?.timeLimit || room.timeLimit || 30;
-  const timeLeft = room.questionStartTime && question
-    ? Math.max(0, Math.ceil(limit - (Date.now() - room.questionStartTime) / 1000))
-    : null;
+
+  let limit = question?.timeLimit !== undefined ? question.timeLimit : room.timeLimit;
+  const hasTimer = (limit !== null && limit !== undefined && limit > 0);
+
+  let timeLeft = null;
+  let questionEndsAt = null;
+  if (hasTimer && room.questionStartTime) {
+    const elapsed = (Date.now() - room.questionStartTime) / 1000;
+    timeLeft = Math.max(0, Math.ceil(limit - elapsed));
+    questionEndsAt = room.questionStartTime + limit * 1000;
+  }
+
   const answer = room.answers[userId];
   
   let leaderboardData = null;
@@ -126,7 +135,7 @@ function getGameState(roomCode, userId) {
     isCreator: room.creatorId === userId,
     isOrganizer: room.organizers.has(userId),
     timeLeft: timeLeft,
-    questionEndsAt: room.questionStartTime ? room.questionStartTime + limit * 1000 : null,
+    questionEndsAt: questionEndsAt,
     hasAnswered: !!room.answered[userId],
     selectedOptionIds: answer?.optionIds || [],
     answerResult: answer ? {
@@ -188,11 +197,17 @@ function startQuiz(code, io) {
     room.answered[id] = false;
   }
   
-  room.questionStartTime = Date.now();
   const question = room.questions[0];
-  const limit = question.timeLimit || room.timeLimit;
-  clearTimeout(room.timer);
-  room.timer = setTimeout(() => advanceQuiz(code, io), limit * 1000 + 250);
+  let limit = question?.timeLimit !== undefined ? question.timeLimit : room.timeLimit;
+  const hasTimer = (limit !== null && limit !== undefined && limit > 0);
+  
+  if (hasTimer) {
+    room.questionStartTime = Date.now();
+    room.timer = setTimeout(() => advanceQuiz(code, io), limit * 1000 + 250);
+  } else {
+    room.questionStartTime = null;
+  }
+  
   emitState(io, code);
   return { success: true };
 }
@@ -208,10 +223,15 @@ function submitAnswer(code, userId, questionId, optionIds, io) {
     return { error: 'Неверный вопрос' };
   }
 
-  const limit = question.timeLimit || room.timeLimit;
-  if (Date.now() - room.questionStartTime > limit * 1000) {
-    return { error: 'Время вышло' };
+  let limit = question?.timeLimit !== undefined ? question.timeLimit : room.timeLimit;
+  const hasTimer = (limit !== null && limit !== undefined && limit > 0);
+  if (hasTimer && room.questionStartTime) {
+    const elapsed = (Date.now() - room.questionStartTime) / 1000;
+    if (elapsed > limit) {
+      return { error: 'Время вышло' };
+    }
   }
+
   if (room.answered[userId]) return { error: 'Ответ уже отправлен' };
 
   const selected = normalizeIds(optionIds);
@@ -342,14 +362,21 @@ function advanceQuiz(code, io) {
   }
   
   const question = room.questions[room.currentQuestionIndex];
-  const limit = question.timeLimit || room.timeLimit;
-  room.questionStartTime = Date.now();
+  let limit = question?.timeLimit !== undefined ? question.timeLimit : room.timeLimit;
+  const hasTimer = (limit !== null && limit !== undefined && limit > 0);
+  
+  if (hasTimer) {
+    room.questionStartTime = Date.now();
+    room.timer = setTimeout(() => advanceQuiz(code, io), limit * 1000 + 250);
+  } else {
+    room.questionStartTime = null;
+  }
+  
   room.answers = {};
   for (const id of room.players.keys()) {
     room.answered[id] = false;
   }
   clearTimeout(room.timer);
-  room.timer = setTimeout(() => advanceQuiz(code, io), limit * 1000 + 250);
   emitState(io, code);
 }
 
