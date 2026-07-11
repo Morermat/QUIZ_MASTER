@@ -26,7 +26,8 @@ function createRoom(roomCode, quizData) {
     questionStartTime: null,
     timer: null,
     advancePending: false,
-    resultSaved: false
+    resultSaved: false,
+    _leaderboardCache: null
   };
 }
 
@@ -102,6 +103,12 @@ function getGameState(roomCode, userId) {
     ? Math.max(0, Math.ceil(limit - (Date.now() - room.questionStartTime) / 1000))
     : null;
   const answer = room.answers[userId];
+  
+  let leaderboardData = null;
+  if (room.status === 'finished') {
+    leaderboardData = room._leaderboardCache || leaderboard(room);
+  }
+  
   return {
     roomCode: roomCode,
     status: room.status,
@@ -127,7 +134,7 @@ function getGameState(roomCode, userId) {
     quizTitle: room.quizTitle,
     creatorId: room.creatorId,
     organizers: [...room.organizers],
-    leaderboard: room.status === 'finished' ? leaderboard(room) : null
+    leaderboard: leaderboardData
   };
 }
 
@@ -169,6 +176,7 @@ function startQuiz(code, io) {
   room.answers = {};
   room.answered = {};
   room.participated = new Set();
+  room._leaderboardCache = null;
   
   for (const id of room.players.keys()) {
     room.scores[id] = 0;
@@ -229,7 +237,6 @@ function submitAnswer(code, userId, questionId, optionIds, io) {
     points: points
   };
   room.participated.add(userId);
-  console.log(`[LOG] submitAnswer: userId=${userId}, points=${points}, participated size=${room.participated.size}, players count=${room.players.size}`);
   
   const stats = ensureStats(userId);
   stats.totalAnswers++;
@@ -251,14 +258,10 @@ function saveResults(room, code) {
   for (const id of room.players.keys()) {
     if (!room.participated.has(id)) {
       room.participated.add(id);
-      console.log(`[LOG] saveResults: добавлен игрок ${id} в participated (не ответил)`);
     }
   }
   
   const board = leaderboard(room).filter(p => room.participated.has(p.user_id));
-  console.log(`[LOG] saveResults: board length=${board.length}, participated size=${room.participated.size}, players size=${room.players.size}`);
-  console.log('[LOG] saveResults: board =', JSON.stringify(board, null, 2));
-  
   const topScore = board[0]?.score;
   
   for (const player of board) {
@@ -276,6 +279,8 @@ function saveResults(room, code) {
     });
     stats.history = stats.history.slice(0, 50);
   }
+  
+  room._leaderboardCache = board;
   room.resultSaved = true;
 }
 
@@ -300,10 +305,9 @@ function advanceQuiz(code, io) {
     }
     
     saveResults(room, code);
-        const board = leaderboard(room);
+    const board = room._leaderboardCache || leaderboard(room);
     io.to(code).emit('leaderboard', { players: board });
     io.to(code).emit('quiz_finished');
-    
     emitState(io, code);
     return;
   }
@@ -337,6 +341,7 @@ function restartQuiz(code, io) {
   room.timer = null;
   room.advancePending = false;
   room.resultSaved = false;
+  room._leaderboardCache = null;
   for (const id of room.players.keys()) {
     room.scores[id] = 0;
     room.answered[id] = false;
