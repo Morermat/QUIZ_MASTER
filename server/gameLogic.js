@@ -286,10 +286,11 @@ function submitAnswer(code, userId, questionId, optionIds, io) {
     points: points
   };
 
-  ensureStats(userId).then(stats => {
-    stats.totalAnswers++;
-    if (exact) stats.correctAnswers++;
-  }).catch(console.error);
+ensureStats(userId).then(stats => {
+  stats.totalAnswers++;
+  if (exact) stats.correctAnswers++;
+  return saveStats(userId);
+}).catch(console.error);
 
   const allAnswered = [...room.players.keys()].every(id => room.answered[id]);
   if (allAnswered) scheduleAdvance(code, io);
@@ -328,6 +329,7 @@ async function saveResults(room, code) {
         won: isWinner
       });
       stats.history = stats.history.slice(0, 50);
+      await saveStats(player.user_id);
     } catch (err) {
       console.error('Error saving stats for user', player.user_id, err);
     }

@@ -45,6 +45,20 @@ async function ensureStats(userId) {
   return userStats.get(userId);
 }
 
+async function saveStats(userId) {
+  const stats = userStats.get(userId);
+  if (!stats) {
+    console.warn('Stats not found for user', userId);
+    return;
+  }
+  await pool.query(
+    `UPDATE stats 
+     SET games_played = $1, wins = $2, correct_answers = $3, total_answers = $4, history = $5
+     WHERE user_id = $6`,
+    [stats.gamesPlayed, stats.wins, stats.correctAnswers, stats.totalAnswers, JSON.stringify(stats.history), userId]
+  );
+}
+
 async function saveUser(user) {
   await pool.query(
     `INSERT INTO users (id, name, avatar_url, vk_id, is_anonymous, auth_provider, email, phone, win_icon, win_music)
@@ -77,4 +91,4 @@ function removePresence(userId, socketId) {
   return s.size;
 }
 
-module.exports = { pool, users, quizzes, userStats, ensureStats, saveUser, addPresence, removePresence, socketPresence, loadUsers };
+module.exports = { pool, users, quizzes, userStats, ensureStats, saveStats, saveUser, addPresence, removePresence, socketPresence, loadUsers };
