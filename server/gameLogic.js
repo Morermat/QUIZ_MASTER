@@ -197,37 +197,46 @@ function submitAnswer(code, userId, questionId, optionIds, io) {
   if (!room) return { error: 'Комната не найдена' };
   if (!room.players.has(userId)) return { error: 'Сначала войдите в комнату' };
   if (room.status !== 'active') return { error: 'Квиз не активен' };
-  
+
   const question = room.questions[room.currentQuestionIndex];
   if (!question || String(question.id) !== String(questionId)) {
     return { error: 'Неверный вопрос' };
   }
-  
+
   const limit = question.timeLimit || room.timeLimit;
   if (Date.now() - room.questionStartTime > limit * 1000) {
     return { error: 'Время вышло' };
   }
   if (room.answered[userId]) return { error: 'Ответ уже отправлен' };
-  
+
   const selected = normalizeIds(optionIds);
   const validOptionIds = new Set(question.options.map(o => String(o.id)));
   if (!selected.length || selected.some(id => !validOptionIds.has(id))) {
     return { error: 'Неверный вариант ответа' };
   }
-  
+
   const correct = normalizeIds(question.options.filter(o => o.is_correct).map(o => o.id));
   if (!question.multiple && correct.length <= 1 && selected.length !== 1) {
     return { error: 'Можно выбрать только один вариант' };
   }
-  
+
   const correctSelected = selected.filter(id => correct.includes(id)).length;
   const wrongSelected = selected.length - correctSelected;
   const exact = selected.length === correct.length && selected.every(id => correct.includes(id));
-  
-  const points = exact
-    ? 1
-    : Math.max(0, correctSelected / correct.length - wrongSelected / Math.max(1, question.options.length - correct.length));
-  
+
+  const scoringType = question.scoringType || 'exact';
+  let points = 0;
+  console.log('[submitAnswer] scoringType:', question.scoringType);
+  console.log('[submitAnswer] correct:', correct);
+  console.log('[submitAnswer] selected:', selected);
+  if (scoringType === 'exact') {
+    points = exact ? 1 : 0;
+  } else if (scoringType === 'partial') {
+  points = exact ? 1 : Math.max(0, (correctSelected - wrongSelected) / correct.length);
+  } else if (scoringType === 'perCorrect') {
+    points = correctSelected * (1 / correct.length);
+  }
+  console.log('[submitAnswer] points:', points);
   room.scores[userId] = (room.scores[userId] || 0) + points;
   room.answered[userId] = true;
   room.answers[userId] = {
@@ -237,14 +246,14 @@ function submitAnswer(code, userId, questionId, optionIds, io) {
     points: points
   };
   room.participated.add(userId);
-  
+
   const stats = ensureStats(userId);
   stats.totalAnswers++;
   if (exact) stats.correctAnswers++;
-  
+
   const allAnswered = [...room.players.keys()].every(id => room.answered[id]);
   if (allAnswered) scheduleAdvance(code, io);
-  
+
   emitState(io, code);
   return {
     isCorrect: exact,
