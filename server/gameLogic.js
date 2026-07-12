@@ -1,6 +1,5 @@
 const rooms = require('./rooms');
-const { ensureStats, saveStats } = require('./store'); 
-
+const { ensureStats, saveStats, users } = require('./store'); 
 const clone = (v) => JSON.parse(JSON.stringify(v));
 const normalizeIds = (ids) => [...new Set((Array.isArray(ids) ? ids : [ids]).filter(v => v !== undefined && v !== null).map(String))].sort();
 
@@ -80,13 +79,22 @@ function publicQuestion(question, reveal = false) {
 
 function leaderboard(room) {
   let rank = 0, last = null;
-  return [...room.players.values()]
-    .map(p => ({
-      user_id: p.id,
-      name: p.name,
-      avatar_url: p.avatar_url,
-      score: +(room.scores[p.id] || 0).toFixed(2)
-    }))
+  const players = [...room.players.values()];
+  const users = require('./store').users;
+
+  return players
+    .map(p => {
+      const user = users.get(p.id);
+      return {
+        user_id: p.id,
+        name: p.name,
+        avatar_url: p.avatar_url,
+        score: +(room.scores[p.id] || 0).toFixed(2),
+        win_icon: user?.win_icon || null,
+        win_music: user?.win_music || null,
+        win_settings: user?.win_settings || {},
+      };
+    })
     .sort((a, b) => b.score - a.score || a.name.localeCompare(b.name))
     .map((p, i) => {
       if (p.score !== last) {

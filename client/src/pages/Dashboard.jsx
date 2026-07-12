@@ -99,30 +99,30 @@ export default function Dashboard() {
     }
   };
 
-  if (loading) return <div className="p-8">Загрузка...</div>;
+  if (loading) return <div className="p-8 text-center animate-pulse">Загрузка...</div>;
 
   return (
-    <div className="flex-1 p-4 md:p-8 animate-fade-in">
-      <div className="flex justify-between items-center mb-8">
+    <div className="container mx-auto px-4 py-8 animate-fade-in max-w-6xl">
+      <div className="flex flex-wrap justify-between items-center mb-10">
         <div>
-          <h1 className="text-2xl md:text-3xl font-bold">Привет, {user?.name}</h1>
-          <p>Создавай квизы или присоединяйся к играм</p>
+          <h1 className="text-3xl md:text-4xl font-bold">Привет, {user?.name}</h1>
+          <p className="text-[var(--text-secondary)] mt-1">Создавай квизы или присоединяйся к играм</p>
         </div>
-        <div className="flex gap-2">
-          <button onClick={() => navigate('/profile')}>Профиль</button>
-          <button onClick={() => { logout(); navigate('/login'); }}>Выйти</button>
+        <div className="flex gap-3 mt-2 md:mt-0">
+          <button onClick={() => navigate('/profile')} className="btn-secondary">Профиль</button>
+          <button onClick={() => { logout(); navigate('/login'); }} className="btn-secondary">Выйти</button>
         </div>
       </div>
 
-      {error && <div className="mb-4 text-red-500">{error}</div>}
+      {error && <div className="mb-6 p-3 bg-red-500/20 border border-red-500 rounded text-red-300">{error}</div>}
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <div className="rounded-lg p-6 border animate-float">
-          <h2>Создать квиз</h2>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-10">
+        <div className="rounded-xl p-6 border animate-float">
+          <h2 className="text-xl font-semibold mb-2">Создать квиз</h2>
           <button className="btn-primary w-full mt-2" onClick={() => navigate('/create')}>Создать</button>
         </div>
-        <div className="rounded-lg p-6 border animate-float">
-          <h2>Присоединиться</h2>
+        <div className="rounded-xl p-6 border animate-float" style={{ animationDelay: '0.2s' }}>
+          <h2 className="text-xl font-semibold mb-2">Присоединиться</h2>
           <div className="flex gap-2 mt-2">
             <input
               value={code}
@@ -137,12 +137,12 @@ export default function Dashboard() {
       </div>
 
       <div className="mt-8">
-        <div className="flex justify-between items-center mb-4 flex-wrap gap-2">
-          <h2>Мои квизы</h2>
-          <div className="flex gap-2 flex-wrap">
+        <div className="flex flex-wrap justify-between items-center mb-4 gap-3">
+          <h2 className="text-2xl font-bold">Мои квизы</h2>
+          <div className="flex gap-3 flex-wrap">
             <input
               type="text"
-              placeholder="Поиск по названию..."
+              placeholder="Поиск..."
               value={searchQuery}
               onChange={e => setSearchQuery(e.target.value)}
               className="px-4 py-2 rounded border bg-[var(--bg)] w-48"
@@ -150,35 +150,26 @@ export default function Dashboard() {
             <button className="btn-secondary" onClick={() => fileInputRef.current?.click()}>
               Импорт JSON
             </button>
-            <input
-              type="file"
-              ref={fileInputRef}
-              className="hidden"
-              accept=".json"
-              onChange={e => {
-                if (e.target.files?.[0]) {
-                  importQuiz(e.target.files[0]);
-                  e.target.value = '';
-                }
-              }}
-            />
+            <input type="file" ref={fileInputRef} className="hidden" accept=".json" onChange={e => { if (e.target.files?.[0]) { importQuiz(e.target.files[0]); e.target.value = ''; } }} />
           </div>
         </div>
         {filteredQuizzes.length === 0 ? (
-          <p>{searchQuery ? 'Ничего не найдено' : 'У тебя пока нет созданных квизов'}</p>
+          <p className="text-[var(--text-secondary)]">{searchQuery ? 'Ничего не найдено' : 'У тебя пока нет созданных квизов'}</p>
         ) : (
-          filteredQuizzes.map(q => (
-            <div key={q.id} className="flex justify-between items-center p-4 border rounded mt-2 flex-wrap gap-2">
-              <div>
-                <b>{q.title}</b>
-                <div>Код: <code>{q.code}</code> · Вопросов: {q.questionCount}</div>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {filteredQuizzes.map(q => (
+              <div key={q.id} className="flex justify-between items-center p-4 border rounded-xl bg-[var(--bg-card)] hover:border-gold/40 transition">
+                <div>
+                  <b className="text-lg">{q.title}</b>
+                  <div className="text-sm text-[var(--text-secondary)]">Код: <code>{q.code}</code> · Вопросов: {q.questionCount}</div>
+                </div>
+                <div className="flex gap-2">
+                  <button className="btn-secondary text-sm" onClick={() => navigate(`/lobby/${q.code}`)}>Открыть</button>
+                  <button className="btn-secondary text-sm" onClick={() => exportJSON(q)}>JSON</button>
+                </div>
               </div>
-              <div className="flex gap-2 flex-wrap">
-                <button className="btn-secondary text-sm" onClick={() => navigate(`/lobby/${q.code}`)}>Открыть</button>
-                <button className="btn-secondary text-sm" onClick={() => exportJSON(q)}>JSON</button>
-              </div>
-            </div>
-          ))
+            ))}
+          </div>
         )}
       </div>
     </div>

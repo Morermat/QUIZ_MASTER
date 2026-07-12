@@ -22,53 +22,54 @@ export default function Leaderboard() {
   const [winSettings, setWinSettings] = useState({});
 
   useEffect(() => {
-    if (!leaderboardData || !user) return;
-    const first = leaderboardData[0];
-    if (first && first.user_id === user.id) {
-      const icon = user.win_icon;
-      const music = user.win_music;
-      const settings = user.win_settings || {};
-      let hasAnimation = false;
+    if (!leaderboardData || !leaderboardData.length) return;
+    const winner = leaderboardData[0];
+    if (!winner) return;
 
-      if (icon) {
-        setWinIcon(icon);
-        setWinSettings(settings);
-        setIsVideo(settings.iconType === 'video');
-        hasAnimation = true;
+    const icon = winner.win_icon;
+    const music = winner.win_music;
+    const settings = winner.win_settings || {};
+
+    let hasAnimation = false;
+
+    if (icon) {
+      setWinIcon(icon);
+      setWinSettings(settings);
+      setIsVideo(settings.iconType === 'video');
+      hasAnimation = true;
+    }
+
+    if (music) {
+      if (audioRef.current) {
+        audioRef.current.pause();
+        audioRef.current = null;
+      }
+      const audio = new Audio(music);
+      audioRef.current = audio;
+
+      const musicStart = settings.musicStart || 0;
+      const musicEnd = settings.musicEnd || 0;
+      let duration = 3000;
+
+      if (musicEnd > musicStart) {
+        audio.currentTime = musicStart;
+        duration = (musicEnd - musicStart) * 1000;
       }
 
-      if (music) {
+      audio.play().catch(err => console.warn('Audio play failed:', err));
+      hasAnimation = true;
+
+      setTimeout(() => {
         if (audioRef.current) {
           audioRef.current.pause();
           audioRef.current = null;
         }
-        const audio = new Audio(music);
-        audioRef.current = audio;
-
-        const musicStart = settings.musicStart || 0;
-        const musicEnd = settings.musicEnd || 0;
-        let duration = 3000;
-
-        if (musicEnd > musicStart) {
-          audio.currentTime = musicStart;
-          duration = (musicEnd - musicStart) * 1000;
-        }
-
-        audio.play().catch(err => console.warn('Audio play failed:', err));
-        hasAnimation = true;
-
-        setTimeout(() => {
-          if (audioRef.current) {
-            audioRef.current.pause();
-            audioRef.current = null;
-          }
-        }, duration);
-      }
-
-      if (hasAnimation) setShowWin(true);
-      setTimeout(() => setShowWin(false), 3000);
+      }, duration);
     }
-  }, [leaderboardData, user]);
+
+    if (hasAnimation) setShowWin(true);
+    setTimeout(() => setShowWin(false), 3000);
+  }, [leaderboardData]);
 
   useEffect(() => {
     if (!socket) return;
