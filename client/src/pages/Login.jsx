@@ -76,16 +76,14 @@ const Login = () => {
             </button>
           </form>
           
-          <div className="relative my-4">
-            <div className="absolute inset-0 flex items-center">
-              <div className="w-full border-t" style={{ borderColor: 'var(--border)' }}></div>
-            </div>
-            <div className="relative flex justify-center text-sm">
-              <span className="px-2" style={{ background: 'var(--code-bg)', color: 'var(--text)' }}>
-                Или
-              </span>
-            </div>
-          </div>
+          <div className="relative my-6"> 
+  <div className="absolute inset-0 flex items-center">
+    <div className="w-full border-t" style={{ borderColor: 'var(--border)' }}></div>
+  </div>
+  <div className="relative flex justify-center text-sm">
+    <span className="px-2 bg-[var(--code-bg)] text-[var(--text)]">Или</span>
+  </div>
+</div>
           
           <VKLoginButton onSuccess={handleVKSuccess} onError={(err) => setError('VK ошибка: ' + err.message)} />
         </div>
