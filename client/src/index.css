@@ -26,19 +26,6 @@ html, body {
   overflow-x: hidden;
 }
 
-.container {
-  padding-top: 2rem;
-  padding-bottom: 2rem;
-}
-
-.max-w-md {
-  max-width: 28rem; 
-}
-
-.gap-3 {
-  gap: 0.75rem;
-}
-
 body {
   background-image: radial-gradient(ellipse at 10% 20%, rgba(106, 13, 173, 0.15) 0%, transparent 50%),
                     radial-gradient(ellipse at 90% 80%, rgba(212, 175, 55, 0.05) 0%, transparent 50%);
@@ -131,6 +118,22 @@ h1 {
   background: rgba(212, 175, 55, 0.1);
   border-color: #d4af37;
 }
+
+.container > * + * {
+  margin-top: 2rem;
+}
+
+.gap-4 { gap: 1.5rem !important; } 
+.gap-6 { gap: 2rem !important; }
+.gap-3 { gap: 1.25rem !important; }
+
+.space-y-4 > * + * { margin-top: 1.5rem; }
+.space-y-6 > * + * { margin-top: 2rem; }
+
+.border-l { padding-left: 2rem; }
+
+.max-w-lg { padding: 1.5rem; }
+.p-6 { padding: 2rem; }
 
 input, select, textarea {
   background: rgba(255, 255, 255, 0.05) !important;
@@ -227,14 +230,8 @@ input:focus, select:focus, textarea:focus {
 }
 
 @media (max-width: 768px) {
-  .container {
-    padding: 1rem;
-  }
-  .max-w-md {
-    max-width: 100%;
-    padding: 0 1rem;
-  }
-  .grid-cols-1.md\:grid-cols-2 {
-    grid-template-columns: 1fr;
-  }
+  .gap-4 { gap: 1rem !important; }
+  .gap-6 { gap: 1.25rem !important; }
+  .p-6 { padding: 1rem; }
+  .border-l { padding-left: 1rem; }
 }

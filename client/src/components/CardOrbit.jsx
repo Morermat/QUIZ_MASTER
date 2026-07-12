@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import axios from 'axios';
 
 const CARDS_COUNT = 12;
-const RADIUS = 140;
+const RADIUS = 180;
 const PREDICTIONS = [
   "Шутки шутками, смех смехом, но веселье заканчивается когда сова на скакалке попадается — это значит, что твой следующий проигрыш уже будет не в игре. {location} жди...",
   "Ты думаешь, что выиграл? Ха. Вселенная просто даёт тебе ложную надежду.",
@@ -92,7 +92,7 @@ export default function CardOrbit() {
   }, [location, loading]);
 
   return (
-    <div className="fixed bottom-6 right-6 w-72 h-72 pointer-events-none z-40" style={{ perspective: '800px' }}>
+    <div className="fixed bottom-8 right-8 w-80 h-80 pointer-events-none z-40" style={{ perspective: '1000px' }}>
       <div className="relative w-full h-full">
         <div
           className="absolute inset-0 flex items-center justify-center animate-spin-slow"
@@ -103,14 +103,16 @@ export default function CardOrbit() {
             const rad = (angle * Math.PI) / 180;
             const sin = Math.sin(rad);
             const cos = Math.cos(rad);
-            const scale = 0.5 + 0.5 * (cos + 1) / 2;
+            const scale = 0.6 + 0.4 * (cos + 1) / 2;
             const opacity = 0.3 + 0.7 * (cos + 1) / 2;
+            const tilt = -10;
+
             return (
               <div
                 key={i}
-                className="absolute w-16 h-24 bg-[var(--bg-card)] border border-gold/30 rounded-lg shadow-lg"
+                className="absolute w-20 h-28 bg-[var(--bg-card)] border border-gold/30 rounded-xl shadow-lg"
                 style={{
-                  transform: `rotateY(${angle}deg) translateZ(${RADIUS}px) scale(${scale})`,
+                  transform: `rotateY(${angle}deg) translateZ(${RADIUS}px) rotateX(${tilt}deg) scale(${scale})`,
                   transformStyle: 'preserve-3d',
                   backfaceVisibility: 'hidden',
                   backgroundImage: `url('/cards/${(i % 15) + 1}.png')`,
