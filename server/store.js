@@ -105,4 +105,4 @@ function removePresence(userId, socketId) {
   return s.size;
 }
 
-module.exports = { pool, users, quizzes, userStats, ensureStats, saveStats, saveUser, addPresence, removePresence, socketPresence, loadUsers };
+module.exports = { pool, users, quizzes, userStats, ensureStats, saveUser, saveStats, addPresence, removePresence, socketPresence, loadUsers };

@@ -1,5 +1,5 @@
 const rooms = require('./rooms');
-const { ensureStats } = require('./store');
+const { ensureStats, saveStats } = require('./store'); 
 
 const clone = (v) => JSON.parse(JSON.stringify(v));
 const normalizeIds = (ids) => [...new Set((Array.isArray(ids) ? ids : [ids]).filter(v => v !== undefined && v !== null).map(String))].sort();
@@ -315,25 +315,26 @@ async function saveResults(room, code) {
   const topScore = board[0]?.score;
   
   for (const player of board) {
-    try {
-      const stats = await ensureStats(player.user_id);
-      stats.gamesPlayed++;
-      const isWinner = player.score === topScore;
-      if (isWinner) stats.wins++;
-      stats.history.unshift({
-        roomCode: code,
-        quizTitle: room.quizTitle,
-        date: new Date().toISOString(),
-        score: player.score,
-        place: player.place,
-        won: isWinner
-      });
-      stats.history = stats.history.slice(0, 50);
-      await saveStats(player.user_id);
-    } catch (err) {
-      console.error('Error saving stats for user', player.user_id, err);
-    }
+  try {
+    const stats = await ensureStats(player.user_id);
+    stats.gamesPlayed++;
+    const isWinner = player.score === topScore;
+    if (isWinner) stats.wins++;
+    stats.history.unshift({
+      roomCode: code,
+      quizTitle: room.quizTitle,
+      date: new Date().toISOString(),
+      score: player.score,
+      place: player.place,
+      won: isWinner
+    });
+    stats.history = stats.history.slice(0, 50);
+    await saveStats(player.user_id, stats); // ← добавляем сохранение
+  } catch (err) {
+    console.error('Error saving stats for user', player.user_id, err);
   }
+}
+
   
   room._leaderboardCache = board;
   room._questionHistoryCache = room._questionHistory || null;
