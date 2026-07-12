@@ -92,7 +92,7 @@ export default function CardOrbit() {
   }, [location, loading]);
 
   return (
-    <div className="fixed bottom-8 right-8 w-80 h-80 pointer-events-none z-40" style={{ perspective: '1000px' }}>
+    <div className="fixed bottom-8 right-8 w-80 h-80 pointer-events-none z-40" style={{ perspective: '1200px' }}>
       <div className="relative w-full h-full">
         <div
           className="absolute inset-0 flex items-center justify-center animate-spin-slow"
@@ -103,16 +103,16 @@ export default function CardOrbit() {
             const rad = (angle * Math.PI) / 180;
             const sin = Math.sin(rad);
             const cos = Math.cos(rad);
-            const scale = 0.6 + 0.4 * (cos + 1) / 2;
-            const opacity = 0.3 + 0.7 * (cos + 1) / 2;
-            const tilt = -10;
+
+            const scale = 0.5 + 0.5 * (cos + 1) / 2;
+            const opacity = 0.2 + 0.8 * (cos + 1) / 2;
 
             return (
               <div
                 key={i}
                 className="absolute w-20 h-28 bg-[var(--bg-card)] border border-gold/30 rounded-xl shadow-lg"
                 style={{
-                  transform: `rotateY(${angle}deg) translateZ(${RADIUS}px) rotateX(${tilt}deg) scale(${scale})`,
+                  transform: `rotateX(${angle}deg) translateZ(${RADIUS}px) rotateY(0deg) scale(${scale})`,
                   transformStyle: 'preserve-3d',
                   backfaceVisibility: 'hidden',
                   backgroundImage: `url('/cards/${(i % 15) + 1}.png')`,
@@ -120,6 +120,7 @@ export default function CardOrbit() {
                   backgroundPosition: 'center',
                   opacity: opacity,
                   transition: 'opacity 0.1s, transform 0.1s',
+                  boxShadow: '0 10px 30px rgba(0,0,0,0.8)',
                 }}
               />
             );
@@ -128,7 +129,7 @@ export default function CardOrbit() {
 
         {showPrediction && prediction && (
           <div className="absolute inset-0 flex items-center justify-center animate-fade-in-up">
-            <div className="bg-[var(--bg-card)] border border-gold/40 rounded-xl p-4 shadow-2xl max-w-xs text-center text-sm text-[var(--text-secondary)]">
+            <div className="bg-[var(--bg-card)] border border-gold/40 rounded-xl p-5 shadow-2xl max-w-xs text-center text-sm text-[var(--text-secondary)]">
               {prediction}
             </div>
           </div>
