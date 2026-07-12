@@ -21,7 +21,7 @@ export default function Profile() {
     try {
       const r = await api.get('/profile');
       setData(r.data);
-      setName(r.data.user.name);
+      setName(r.data.user.name || '');
       setAvatar(r.data.user.avatar_url || '');
       setWinIcon(r.data.user.win_icon || null);
       setWinMusic(r.data.user.win_music || null);
@@ -105,7 +105,7 @@ export default function Profile() {
   if (error && !data) return <div className="p-8"><p className="text-red-500">{error}</p><button onClick={() => navigate('/dashboard')}>Назад</button></div>;
   if (!data) return <div className="p-8">Загрузка...</div>;
 
-  const s = data.stats;
+  const s = data.stats || { gamesPlayed: 0, wins: 0, correctAnswers: 0, correctPercent: 0, history: [] };
 
   return (
     <div className="max-w-4xl mx-auto p-6">
@@ -138,7 +138,7 @@ export default function Profile() {
           </div>
 
           <h2 className="text-xl font-semibold mb-2">История игр</h2>
-          {s.history.length ? s.history.map((h, i) => (
+          {s.history && s.history.length ? s.history.map((h, i) => (
             <div key={`${h.date}-${i}`} className="p-3 border-b">{h.quizTitle} — {h.score} балла, место {h.place}, {new Date(h.date).toLocaleString()}</div>
           )) : <p>История пока пустая</p>}
         </div>
