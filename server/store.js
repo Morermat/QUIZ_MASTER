@@ -13,9 +13,7 @@ const socketPresence = new Map();
 async function loadUsers() {
   try {
     const res = await pool.query('SELECT * FROM users');
-    res.rows.forEach(row => {
-      users.set(row.id, row);
-    });
+    res.rows.forEach(row => users.set(row.id, row));
     const statsRes = await pool.query('SELECT * FROM stats');
     statsRes.rows.forEach(row => {
       userStats.set(row.user_id, {
@@ -33,22 +31,26 @@ async function loadUsers() {
 }
 
 async function ensureStats(userId) {
-  if (!userStats.has(userId)) {
+  if (userStats.has(userId)) {
+    return userStats.get(userId);
+  }
+  try {
     await pool.query(
       'INSERT INTO stats (user_id) VALUES ($1) ON CONFLICT (user_id) DO NOTHING',
       [userId]
     );
-    const stats = { gamesPlayed: 0, wins: 0, correctAnswers: 0, totalAnswers: 0, history: [] };
-    userStats.set(userId, stats);
-    return stats;
+  } catch (err) {
+    console.error('failed to insert stats for user', userId, err.message);
   }
-  return userStats.get(userId);
+
+  const stats = { gamesPlayed: 0, wins: 0, correctAnswers: 0, totalAnswers: 0, history: [] };
+  userStats.set(userId, stats);
+  return stats;
 }
 
-async function saveStats(userId) {
-  const stats = userStats.get(userId);
+async function saveStats(userId, stats) {
   if (!stats) {
-    console.warn('Stats not found for user', userId);
+    console.warn('saveStats called without stats object for user', userId);
     return;
   }
   await pool.query(
@@ -57,6 +59,7 @@ async function saveStats(userId) {
      WHERE user_id = $6`,
     [stats.gamesPlayed, stats.wins, stats.correctAnswers, stats.totalAnswers, JSON.stringify(stats.history), userId]
   );
+  userStats.set(userId, stats);
 }
 
 async function saveUser(user) {
@@ -78,20 +81,6 @@ async function saveUser(user) {
   users.set(user.id, user);
 }
 
-async function saveStats(userId, stats) {
-  await pool.query(
-    `UPDATE stats SET 
-      games_played = $1,
-      wins = $2,
-      correct_answers = $3,
-      total_answers = $4,
-      history = $5
-     WHERE user_id = $6`,
-    [stats.gamesPlayed, stats.wins, stats.correctAnswers, stats.totalAnswers, JSON.stringify(stats.history), userId]
-  );
-  userStats.set(userId, stats);
-}
-
 function addPresence(userId, socketId) {
   if (!socketPresence.has(userId)) socketPresence.set(userId, new Set());
   socketPresence.get(userId).add(socketId);
@@ -105,4 +94,16 @@ function removePresence(userId, socketId) {
   return s.size;
 }
 
-module.exports = { pool, users, quizzes, userStats, ensureStats, saveUser, saveStats, addPresence, removePresence, socketPresence, loadUsers };
+module.exports = { 
+  pool, 
+  users, 
+  quizzes, 
+  userStats, 
+  ensureStats, 
+  saveUser, 
+  saveStats,
+  addPresence, 
+  removePresence, 
+  socketPresence, 
+  loadUsers 
+};
