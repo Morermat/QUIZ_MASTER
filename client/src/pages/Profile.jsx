@@ -187,7 +187,7 @@ export default function Profile() {
           </div>
         </div>
 
-        <div className="border-l pl-6 space-y-4">
+        <div className="border-l pl-6 space-y-4 max-w-full">
   <h2 className="text-xl font-bold mb-4 text-[var(--accent-gold)]">Что проигрывать при победе</h2>
 
   <div className="bg-[var(--bg-card)] p-5 rounded-xl border border-gold/20 shadow-lg">

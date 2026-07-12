@@ -102,8 +102,8 @@ export default function Dashboard() {
   if (loading) return <div className="p-8 text-center animate-pulse">Загрузка...</div>;
 
   return (
-    <div className="container mx-auto px-4 py-8 animate-fade-in max-w-6xl">
-      <div className="flex flex-wrap justify-between items-center mb-10">
+<div className="container mx-auto px-4 py-8 animate-fade-in max-w-6xl overflow-hidden">
+        <div className="flex flex-wrap justify-between items-center mb-10">
         <div>
           <h1 className="text-3xl md:text-4xl font-bold">Привет, {user?.name}</h1>
           <p className="text-[var(--text-secondary)] mt-1">Создавай квизы или присоединяйся к играм</p>
@@ -123,7 +123,7 @@ export default function Dashboard() {
         </div>
         <div className="rounded-xl p-6 border animate-float" style={{ animationDelay: '0.2s' }}>
           <h2 className="text-xl font-semibold mb-2">Присоединиться</h2>
-          <div className="flex gap-2 mt-2">
+          <div className="flex gap-2 mt-2 flex-wrap">
             <input
               value={code}
               onChange={e => setCode(e.target.value.replace(/\D/g, '').slice(0, 6))}

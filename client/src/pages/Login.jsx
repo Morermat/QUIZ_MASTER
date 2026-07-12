@@ -39,7 +39,7 @@ const Login = () => {
 
   return (
     <div className="flex flex-col items-center justify-center min-h-[80vh] px-4 animate-fade-in">
-      <div className="w-full max-w-md">
+      <div className="w-full max-w-md overflow-hidden">
         <h1 className="text-4xl font-bold text-center mb-8" style={{ color: 'var(--text-h)' }}>
           КвизМастер
         </h1>

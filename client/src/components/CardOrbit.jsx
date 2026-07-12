@@ -120,7 +120,7 @@ export default function CardOrbit() {
 
   return (
     <div
-      className="fixed bottom-8 right-8 w-80 h-80 pointer-events-none z-40"
+      className="hidden md:block fixed bottom-4 right-4 w-64 h-64 pointer-events-none z-40 md:w-80 md:h-80 lg:w-96 lg:h-96"
       style={{
         perspective: "1600px",
         perspectiveOrigin: "center center",
