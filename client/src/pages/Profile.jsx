@@ -150,7 +150,7 @@ export default function Profile() {
   const s = data.stats || { gamesPlayed: 0, wins: 0, correctAnswers: 0, correctPercent: 0, history: [] };
 
   return (
-    <div className="max-w-5xl mx-auto p-6">
+    <div className="max-w-5xl mx-auto p-6 animate-fade-in">
       <h1 className="text-3xl font-bold mb-6">Профиль</h1>
       {error && <p className="text-red-500">{error}</p>}
 

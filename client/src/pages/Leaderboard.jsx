@@ -171,7 +171,7 @@ export default function Leaderboard() {
   };
 
   return (
-    <div className="max-w-lg mx-auto p-6">
+    <div className="max-w-lg mx-auto p-6 animate-fade-in">
       <h1 className="text-3xl font-bold mb-6">Лидерборд</h1>
       {error && <p className="text-red-500">{error}</p>}
       {board.length === 0 ? (

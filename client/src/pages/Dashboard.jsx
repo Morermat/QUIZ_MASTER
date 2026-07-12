@@ -102,7 +102,7 @@ export default function Dashboard() {
   if (loading) return <div className="p-8">Загрузка...</div>;
 
   return (
-    <div className="flex-1 p-4 md:p-8">
+    <div className="flex-1 p-4 md:p-8 animate-fade-in">
       <div className="flex justify-between items-center mb-8">
         <div>
           <h1 className="text-2xl md:text-3xl font-bold">Привет, {user?.name}</h1>
@@ -117,11 +117,11 @@ export default function Dashboard() {
       {error && <div className="mb-4 text-red-500">{error}</div>}
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <div className="rounded-lg p-6 border">
+        <div className="rounded-lg p-6 border animate-float">
           <h2>Создать квиз</h2>
           <button className="btn-primary w-full mt-2" onClick={() => navigate('/create')}>Создать</button>
         </div>
-        <div className="rounded-lg p-6 border">
+        <div className="rounded-lg p-6 border animate-float">
           <h2>Присоединиться</h2>
           <div className="flex gap-2 mt-2">
             <input

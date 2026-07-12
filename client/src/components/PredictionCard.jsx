@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import axios from 'axios';
 
 const predictions = [
-  "Шутки шутками, смех смехом, но когда сова на скакалке попадается — это значит, что твой следующий проигрыш уже будет не в игре. {location} жди...",
+  "Шутки шутками, смех смехом, но веселье заканчивается когда сова на скакалке попадается — это значит, что твой следующий проигрыш уже будет не в игре. {location} жди...",
   "Ты думаешь, что выиграл? Ха. Вселенная просто даёт тебе ложную надежду.",
   "Звёзды предупреждают: твоя самоуверенность — единственное, что работает хуже твоей интуиции.",
   "Карты говорят, что ты слишком много думаешь. Это не помогает, это просто смешно.",
@@ -22,7 +22,7 @@ export default function PredictionCard() {
   const [text, setText] = useState('');
   const [location, setLocation] = useState(null);
   const [loading, setLoading] = useState(true);
-
+  const [hasLocation, setHasLocation] = useState(false);
   useEffect(() => {
     if (!navigator.geolocation) {
       setLocation('неизвестное местоположение');
@@ -76,6 +76,8 @@ export default function PredictionCard() {
     const show = () => {
       const raw = predictions[Math.floor(Math.random() * predictions.length)];
       const locationText = location || 'неизвестное местоположение';
+      const hasLoc = raw.includes('{location}');
+      setHasLocation(hasLoc);
       setText(raw.replace(/\{location\}/g, locationText));
       setVisible(true);
       setTimeout(() => setVisible(false), 6000);
@@ -100,7 +102,7 @@ export default function PredictionCard() {
   return (
     <div className="prediction-card animate-fade-in" onClick={() => setVisible(false)}>
       <div className="text">{text}</div>
-      {location && !location.includes('неизвестное') && (
+      {hasLocation && location && !location.includes('неизвестное') && (
         <div className="text-xs opacity-50 mt-1">📍 {location}</div>
       )}
       <div className="text-xs opacity-50 mt-0.5 italic">(нажми, чтобы скрыть)</div>
