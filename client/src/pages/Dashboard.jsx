@@ -108,7 +108,7 @@ export default function Dashboard() {
           <h1 className="text-3xl md:text-4xl font-bold">Привет, {user?.name}</h1>
           <p className="text-[var(--text-secondary)] mt-1">Создавай квизы или присоединяйся к играм</p>
         </div>
-        <div className="flex gap-3 mt-2 md:mt-0">
+        <div className="flex gap-5 mt-2 md:mt-0">
           <button onClick={() => navigate('/profile')} className="btn-secondary">Профиль</button>
           <button onClick={() => { logout(); navigate('/login'); }} className="btn-secondary">Выйти</button>
         </div>

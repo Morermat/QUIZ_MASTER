@@ -188,86 +188,85 @@ export default function Profile() {
         </div>
 
         <div className="border-l pl-6 space-y-4">
-          <h2 className="text-xl font-bold">Что проигрывать при победе</h2>
+  <h2 className="text-xl font-bold mb-4 text-[var(--accent-gold)]">Что проигрывать при победе</h2>
 
-          <div className="bg-[var(--code-bg)] p-4 rounded-lg shadow">
-            <h3 className="font-semibold mb-2 flex items-center gap-2">Победная музыка</h3>
-            <input type="file" accept=".mp3,.ogg" onChange={e => handleFileChange('music', e.target.files?.[0])} className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100" />
-            {musicFile && <span className="block text-sm text-green-600 mt-1">Выбран: {musicFile.name}</span>}
-            {winMusic && (
-              <div className="mt-2 flex items-center gap-3">
-                <audio controls src={winMusic} className="max-w-xs" />
-                <button onClick={() => resetFile('music')} className="text-red-500 text-sm hover:underline">Обнулить</button>
-              </div>
-            )}
-            {(winMusic || musicFile) && (
-              <div className="mt-3 border-t pt-3">
-                <h4 className="font-medium">⏱Обрезка аудио (сек)</h4>
-                <div className="flex gap-3 mt-1">
-                  <div>
-                    <label className="block text-sm">Начало</label>
-                    <input type="number" min="0" value={musicStart} onChange={e => setMusicStart(parseInt(e.target.value) || 0)} className="w-20 px-2 py-1 border rounded bg-[var(--bg)]" />
-                  </div>
-                  <div>
-                    <label className="block text-sm">Конец</label>
-                    <input type="number" min="0" value={musicEnd} onChange={e => setMusicEnd(parseInt(e.target.value) || 0)} className="w-20 px-2 py-1 border rounded bg-[var(--bg)]" />
-                  </div>
-                </div>
-              </div>
-            )}
+  <div className="bg-[var(--bg-card)] p-5 rounded-xl border border-gold/20 shadow-lg">
+    <h3 className="font-semibold mb-2 text-lg"> Победная музыка</h3>
+    <input type="file" accept=".mp3,.ogg" onChange={e => handleFileChange('music', e.target.files?.[0])} className="block w-full text-sm text-gray-300 file:mr-4 file:py-2 file:px-4 file:rounded file:border-0 file:text-sm file:font-semibold file:bg-[var(--accent-gold)] file:text-[#0b081a] hover:file:bg-[#c9a84c]" />
+    {musicFile && <span className="block text-sm text-green-400 mt-1">Выбран: {musicFile.name}</span>}
+    {winMusic && (
+      <div className="mt-3 flex items-center gap-3">
+        <audio controls src={winMusic} className="max-w-xs" />
+        <button onClick={() => resetFile('music')} className="text-red-400 text-sm hover:underline">Обнулить</button>
+      </div>
+    )}
+    {(winMusic || musicFile) && (
+      <div className="mt-4 border-t border-gold/20 pt-4">
+        <h4 className="font-medium text-sm"> Обрезка аудио (сек)</h4>
+        <div className="flex gap-3 mt-1">
+          <div>
+            <label className="block text-xs text-[var(--text-secondary)]">Начало</label>
+            <input type="number" min="0" value={musicStart} onChange={e => setMusicStart(parseInt(e.target.value) || 0)} className="w-20 px-2 py-1 border rounded bg-[var(--bg)]" />
           </div>
-
-          <div className="bg-[var(--code-bg)] p-4 rounded-lg shadow">
-            <h3 className="font-semibold mb-2 flex items-center gap-2">Победный медиа</h3>
-            <input type="file" accept=".gif,.png,.webp,.mp4" onChange={e => handleFileChange('icon', e.target.files?.[0])} className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100" />
-            {iconFile && <span className="block text-sm text-green-600 mt-1">Выбран: {iconFile.name}</span>}
-            {winIcon && (
-              <div className="mt-2">
-                {isVideo ? (
-                  <video src={winIcon} controls className="max-w-full max-h-40 rounded" />
-                ) : (
-                  <img src={winIcon} alt="Иконка победы" className="max-w-full max-h-40 object-contain rounded" />
-                )}
-                <button onClick={() => resetFile('icon')} className="text-red-500 text-sm mt-1 hover:underline">Обнулить</button>
-              </div>
-            )}
-          </div>
-
-          {isVideo && winIcon && (
-            <div className="bg-[var(--code-bg)] p-4 rounded-lg shadow">
-              <h3 className="font-semibold mb-2">Обрезка видео</h3>
-              <div className="flex gap-3">
-                <div>
-                  <label className="block text-sm">Начало (сек)</label>
-                  <input type="number" min="0" value={start} onChange={e => setStart(parseInt(e.target.value) || 0)} className="w-20 px-2 py-1 border rounded bg-[var(--bg)]" />
-                </div>
-                <div>
-                  <label className="block text-sm">Конец (сек)</label>
-                  <input type="number" min="0" value={end} onChange={e => setEnd(parseInt(e.target.value) || 0)} className="w-20 px-2 py-1 border rounded bg-[var(--bg)]" />
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* Размер отображения */}
-          <div className="bg-[var(--code-bg)] p-4 rounded-lg shadow">
-            <h3 className="font-semibold mb-2">Размер при победе</h3>
-            <select value={displaySize} onChange={e => setDisplaySize(e.target.value)} className="px-3 py-2 border rounded bg-[var(--bg)]">
-              <option value="small">Маленький (200px)</option>
-              <option value="medium">Средний (300px)</option>
-              <option value="large">Большой (400px)</option>
-            </select>
-          </div>
-
-          <div className="flex flex-col gap-2">
-            <button className="btn-secondary w-full py-2" disabled={uploading || (!iconFile && !musicFile)} onClick={uploadFiles}>
-              {uploading ? 'Загрузка...' : 'Загрузить файлы и настройки'}
-            </button>
-            <button className="btn-primary w-full py-2" disabled={saving} onClick={saveProfile}>
-              {saving ? 'Сохранение...' : 'Сохранить профиль'}
-            </button>
+          <div>
+            <label className="block text-xs text-[var(--text-secondary)]">Конец</label>
+            <input type="number" min="0" value={musicEnd} onChange={e => setMusicEnd(parseInt(e.target.value) || 0)} className="w-20 px-2 py-1 border rounded bg-[var(--bg)]" />
           </div>
         </div>
+      </div>
+    )}
+  </div>
+
+  <div className="bg-[var(--bg-card)] p-5 rounded-xl border border-gold/20 shadow-lg">
+    <h3 className="font-semibold mb-2 text-lg"> Победный медиа</h3>
+    <input type="file" accept=".gif,.png,.webp,.mp4" onChange={e => handleFileChange('icon', e.target.files?.[0])} className="block w-full text-sm text-gray-300 file:mr-4 file:py-2 file:px-4 file:rounded file:border-0 file:text-sm file:font-semibold file:bg-[var(--accent-gold)] file:text-[#0b081a] hover:file:bg-[#c9a84c]" />
+    {iconFile && <span className="block text-sm text-green-400 mt-1">Выбран: {iconFile.name}</span>}
+    {winIcon && (
+      <div className="mt-3">
+        {isVideo ? (
+          <video src={winIcon} controls className="max-w-full max-h-40 rounded" />
+        ) : (
+          <img src={winIcon} alt="Иконка победы" className="max-w-full max-h-40 object-contain rounded" />
+        )}
+        <button onClick={() => resetFile('icon')} className="text-red-400 text-sm mt-1 hover:underline">Обнулить</button>
+      </div>
+    )}
+  </div>
+
+  {isVideo && winIcon && (
+    <div className="bg-[var(--bg-card)] p-5 rounded-xl border border-gold/20 shadow-lg">
+      <h3 className="font-semibold mb-2 text-lg"> Обрезка видео</h3>
+      <div className="flex gap-3">
+        <div>
+          <label className="block text-xs text-[var(--text-secondary)]">Начало (сек)</label>
+          <input type="number" min="0" value={start} onChange={e => setStart(parseInt(e.target.value) || 0)} className="w-20 px-2 py-1 border rounded bg-[var(--bg)]" />
+        </div>
+        <div>
+          <label className="block text-xs text-[var(--text-secondary)]">Конец (сек)</label>
+          <input type="number" min="0" value={end} onChange={e => setEnd(parseInt(e.target.value) || 0)} className="w-20 px-2 py-1 border rounded bg-[var(--bg)]" />
+        </div>
+      </div>
+    </div>
+  )}
+
+  <div className="bg-[var(--bg-card)] p-5 rounded-xl border border-gold/20 shadow-lg">
+    <h3 className="font-semibold mb-2 text-lg"> Размер при победе</h3>
+    <select value={displaySize} onChange={e => setDisplaySize(e.target.value)} className="px-3 py-2 border rounded bg-[var(--bg)] w-full">
+      <option value="small">Маленький (200px)</option>
+      <option value="medium">Средний (300px)</option>
+      <option value="large">Большой (400px)</option>
+    </select>
+  </div>
+
+  <div className="flex flex-col gap-2 mt-4">
+    <button className="btn-secondary w-full py-3" disabled={uploading || (!iconFile && !musicFile)} onClick={uploadFiles}>
+      {uploading ? 'Загрузка...' : ' Загрузить файлы и настройки'}
+    </button>
+    <button className="btn-primary w-full py-3" disabled={saving} onClick={saveProfile}>
+      {saving ? 'Сохранение...' : ' Сохранить профиль'}
+    </button>
+  </div>
+</div>
       </div>
 
       <button className="mt-6" onClick={() => navigate('/dashboard')}>← Назад</button>
