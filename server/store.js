@@ -78,6 +78,20 @@ async function saveUser(user) {
   users.set(user.id, user);
 }
 
+async function saveStats(userId, stats) {
+  await pool.query(
+    `UPDATE stats SET 
+      games_played = $1,
+      wins = $2,
+      correct_answers = $3,
+      total_answers = $4,
+      history = $5
+     WHERE user_id = $6`,
+    [stats.gamesPlayed, stats.wins, stats.correctAnswers, stats.totalAnswers, JSON.stringify(stats.history), userId]
+  );
+  userStats.set(userId, stats);
+}
+
 function addPresence(userId, socketId) {
   if (!socketPresence.has(userId)) socketPresence.set(userId, new Set());
   socketPresence.get(userId).add(socketId);
