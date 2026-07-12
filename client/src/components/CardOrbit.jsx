@@ -165,7 +165,7 @@ export default function CardOrbit() {
           <div
             className="absolute inset-0 flex items-center justify-center"
             style={{
-              transform: "translateZ(300px) scale(1)",
+              transform: "translate3d(0, -60px, 300px) scale(1)",
               zIndex: 9999,
               pointerEvents: "auto",
             }}
