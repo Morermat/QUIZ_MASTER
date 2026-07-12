@@ -32,7 +32,7 @@ const fileFilter = (req, file, cb) => {
 
 const upload = multer({
   storage,
-  limits: { fileSize: 2 * 1024 * 1024 },
+  limits: { fileSize: 5 * 1024 * 1024 },
   fileFilter
 });
 
@@ -73,19 +73,34 @@ router.post('/upload', auth, upload.fields([{ name: 'icon', maxCount: 1 }, { nam
 
     const baseUrl = process.env.BASE_URL || 'https://quiz-master-backend-o9uo.onrender.com';
     const updates = {};
+    const settings = user.win_settings || {};
 
     if (req.files?.icon) {
       const file = req.files.icon[0];
       updates.win_icon = `${baseUrl}/uploads/icons/${file.filename}`;
+      settings.iconType = file.mimetype.startsWith('video') ? 'video' : 'image';
+      if (!settings.iconType === 'video') {
+        delete settings.start;
+        delete settings.end;
+      }
     }
     if (req.files?.music) {
       const file = req.files.music[0];
       updates.win_music = `${baseUrl}/uploads/audio/${file.filename}`;
     }
 
+    if (req.body.start !== undefined) settings.start = parseInt(req.body.start) || 0;
+    if (req.body.end !== undefined) settings.end = parseInt(req.body.end) || 0;
+    if (req.body.display_size) settings.display_size = req.body.display_size || 'medium';
+    if (settings.iconType !== 'video') {
+      delete settings.start;
+      delete settings.end;
+    }
+
+    user.win_settings = settings;
     Object.assign(user, updates);
     await saveUser(user);
-    res.json({ user, uploaded: updates });
+    res.json({ user, uploaded: updates, settings });
   } catch (err) {
     console.error('Upload error:', err);
     res.status(500).json({ error: 'Ошибка загрузки файла' });
@@ -93,7 +108,7 @@ router.post('/upload', auth, upload.fields([{ name: 'icon', maxCount: 1 }, { nam
 });
 
 router.delete('/upload', auth, async (req, res) => {
-  const { type } = req.query; // 'icon' или 'music'
+  const { type } = req.query; 
   if (!type) return res.status(400).json({ error: 'Укажите тип: icon или music' });
 
   const user = users.get(req.userId);
@@ -119,6 +134,9 @@ router.delete('/upload', auth, async (req, res) => {
   }
 
   user[field] = null;
+  if (type === 'icon') {
+    user.win_settings = {};
+  }
   await saveUser(user);
 
   res.json({ user });

@@ -13,7 +13,14 @@ const socketPresence = new Map();
 async function loadUsers() {
   try {
     const res = await pool.query('SELECT * FROM users');
-    res.rows.forEach(row => users.set(row.id, row));
+    res.rows.forEach(row => {
+      if (row.win_settings) {
+        try { row.win_settings = JSON.parse(row.win_settings); } catch { row.win_settings = {}; }
+      } else {
+        row.win_settings = {};
+      }
+      users.set(row.id, row);
+    });
     const statsRes = await pool.query('SELECT * FROM stats');
     statsRes.rows.forEach(row => {
       userStats.set(row.user_id, {
@@ -40,9 +47,8 @@ async function ensureStats(userId) {
       [userId]
     );
   } catch (err) {
-    console.error('failed to insert stats for user', userId, err.message);
+    console.error('Failed to insert stats for user', userId, err.message);
   }
-
   const stats = { gamesPlayed: 0, wins: 0, correctAnswers: 0, totalAnswers: 0, history: [] };
   userStats.set(userId, stats);
   return stats;
@@ -63,9 +69,10 @@ async function saveStats(userId, stats) {
 }
 
 async function saveUser(user) {
+  const winSettings = user.win_settings ? JSON.stringify(user.win_settings) : '{}';
   await pool.query(
-    `INSERT INTO users (id, name, avatar_url, vk_id, is_anonymous, auth_provider, email, phone, win_icon, win_music)
-     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+    `INSERT INTO users (id, name, avatar_url, vk_id, is_anonymous, auth_provider, email, phone, win_icon, win_music, win_settings)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
      ON CONFLICT (id) DO UPDATE SET
        name = EXCLUDED.name,
        avatar_url = EXCLUDED.avatar_url,
@@ -75,8 +82,9 @@ async function saveUser(user) {
        email = EXCLUDED.email,
        phone = EXCLUDED.phone,
        win_icon = EXCLUDED.win_icon,
-       win_music = EXCLUDED.win_music`,
-    [user.id, user.name, user.avatar_url, user.vk_id, user.is_anonymous, user.auth_provider, user.email, user.phone, user.win_icon || 'default.gif', user.win_music || 'default.mp3']
+       win_music = EXCLUDED.win_music,
+       win_settings = EXCLUDED.win_settings`,
+    [user.id, user.name, user.avatar_url, user.vk_id, user.is_anonymous, user.auth_provider, user.email, user.phone, user.win_icon || null, user.win_music || null, winSettings]
   );
   users.set(user.id, user);
 }

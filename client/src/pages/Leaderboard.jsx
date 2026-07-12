@@ -18,6 +18,8 @@ export default function Leaderboard() {
   const [showWin, setShowWin] = useState(false);
   const [winIcon, setWinIcon] = useState(null);
   const audioRef = useRef(null);
+  const [isVideo, setIsVideo] = useState(false);
+  const [winSettings, setWinSettings] = useState({});
 
   useEffect(() => {
   if (!leaderboardData || !user) return;
@@ -25,10 +27,13 @@ export default function Leaderboard() {
   if (first && first.user_id === user.id) {
     const icon = user.win_icon;
     const music = user.win_music;
+    const settings = user.win_settings || {};
     let hasAnimation = false;
 
     if (icon) {
       setWinIcon(icon);
+      setWinSettings(settings);
+      setIsVideo(settings.iconType === 'video');
       hasAnimation = true;
     }
     if (music) {
@@ -38,7 +43,7 @@ export default function Leaderboard() {
       }
       const audio = new Audio(music);
       audioRef.current = audio;
-      audio.play().catch(err => console.warn('Аудио не заиграло, ошибка:', err));
+      audio.play().catch(err => console.warn('Audio play failed:', err));
       hasAnimation = true;
       setTimeout(() => {
         if (audioRef.current) {
@@ -190,7 +195,33 @@ export default function Leaderboard() {
       {showWin && winIcon && (
   <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-60 z-50 pointer-events-none">
     <div className="animate-pulse">
-      <img src={winIcon} alt="Победа!" className="w-64 h-64 object-contain" />
+      {isVideo ? (
+        <video
+          src={winIcon}
+          autoPlay
+          loop
+          muted
+          className="object-contain rounded-lg shadow-2xl"
+          style={{ maxWidth: winSettings.display_size === 'large' ? '400px' : winSettings.display_size === 'small' ? '200px' : '300px' }}
+          onLoadedMetadata={(e) => {
+            const vid = e.target;
+            const start = winSettings.start || 0;
+            const end = winSettings.end || 0;
+            if (end > start) {
+              vid.currentTime = start;
+              vid.play();
+              setTimeout(() => { vid.pause(); }, (end - start) * 1000);
+            }
+          }}
+        />
+      ) : (
+        <img
+          src={winIcon}
+          alt="Победа!"
+          className="object-contain rounded-lg shadow-2xl"
+          style={{ maxWidth: winSettings.display_size === 'large' ? '400px' : winSettings.display_size === 'small' ? '200px' : '300px' }}
+        />
+      )}
     </div>
   </div>
 )}
