@@ -1,8 +1,8 @@
-import { useState } from 'react';
 import { useEffect } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useSocket } from '../context/SocketContext';
+import { useState, useEffect, useRef } from 'react';
 
 export default function Leaderboard() {
   const { code } = useParams();
@@ -16,6 +16,42 @@ export default function Leaderboard() {
   const [loading, setLoading] = useState(true);
   const [questionHistory, setQuestionHistory] = useState(null);
   const [showDetails, setShowDetails] = useState(false);
+  const [showWin, setShowWin] = useState(false);
+  const [winIcon, setWinIcon] = useState(null);
+  const audioRef = useRef(null);
+
+  useEffect(() => {
+  if (!leaderboardData || !user) return;
+  const first = leaderboardData[0];
+  if (first && first.user_id === user.id) {
+    const icon = user.win_icon;
+    const music = user.win_music;
+    let hasAnimation = false;
+
+    if (icon) {
+      setWinIcon(icon);
+      hasAnimation = true;
+    }
+    if (music) {
+      if (audioRef.current) {
+        audioRef.current.pause();
+        audioRef.current = null;
+      }
+      const audio = new Audio(music);
+      audioRef.current = audio;
+      audio.play().catch(err => console.warn('Аудио не заиграло, ошибка:', err));
+      hasAnimation = true;
+      setTimeout(() => {
+        if (audioRef.current) {
+          audioRef.current.pause();
+          audioRef.current = null;
+        }
+      }, 3000);
+    }
+    if (hasAnimation) setShowWin(true);
+    setTimeout(() => setShowWin(false), 3000);
+  }
+}, [leaderboardData, user]);
 
   useEffect(() => {
     if (!socket) return;
@@ -70,7 +106,6 @@ export default function Leaderboard() {
     const questionIds = Object.keys(questionHistory);
     if (questionIds.length === 0) return <p>Нет данных по вопросам</p>;
 
-    // Получаем список участников для отображения
     const playerNames = {};
     board.forEach(p => { playerNames[p.user_id] = p.name; });
 
@@ -153,6 +188,13 @@ export default function Leaderboard() {
         </>
       )}
       {showDetails && renderDetailsModal()}
+      {showWin && winIcon && (
+  <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-60 z-50 pointer-events-none">
+    <div className="animate-pulse">
+      <img src={winIcon} alt="Победа!" className="w-64 h-64 object-contain" />
+    </div>
+  </div>
+)}
     </div>
   );
 }

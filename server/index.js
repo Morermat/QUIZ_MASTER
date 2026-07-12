@@ -46,6 +46,8 @@ app.get("/", (_, res) => {
     });
 });
 
+const path = require('path');
+app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 app.use("/auth", authRoutes);
 app.use("/quizzes", quizRoutes);
 app.use("/profile", profileRoutes);
