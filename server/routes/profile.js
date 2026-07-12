@@ -85,9 +85,11 @@ router.post('/upload', auth, upload.fields([{ name: 'icon', maxCount: 1 }, { nam
       }
     }
     if (req.files?.music) {
-      const file = req.files.music[0];
-      updates.win_music = `${baseUrl}/uploads/audio/${file.filename}`;
-    }
+  const file = req.files.music[0];
+  updates.win_music = `${baseUrl}/uploads/audio/${file.filename}`;
+  if (req.body.musicStart !== undefined) settings.musicStart = parseInt(req.body.musicStart) || 0;
+  if (req.body.musicEnd !== undefined) settings.musicEnd = parseInt(req.body.musicEnd) || 0;
+}
 
     if (req.body.start !== undefined) settings.start = parseInt(req.body.start) || 0;
     if (req.body.end !== undefined) settings.end = parseInt(req.body.end) || 0;

@@ -22,40 +22,53 @@ export default function Leaderboard() {
   const [winSettings, setWinSettings] = useState({});
 
   useEffect(() => {
-  if (!leaderboardData || !user) return;
-  const first = leaderboardData[0];
-  if (first && first.user_id === user.id) {
-    const icon = user.win_icon;
-    const music = user.win_music;
-    const settings = user.win_settings || {};
-    let hasAnimation = false;
+    if (!leaderboardData || !user) return;
+    const first = leaderboardData[0];
+    if (first && first.user_id === user.id) {
+      const icon = user.win_icon;
+      const music = user.win_music;
+      const settings = user.win_settings || {};
+      let hasAnimation = false;
 
-    if (icon) {
-      setWinIcon(icon);
-      setWinSettings(settings);
-      setIsVideo(settings.iconType === 'video');
-      hasAnimation = true;
-    }
-    if (music) {
-      if (audioRef.current) {
-        audioRef.current.pause();
-        audioRef.current = null;
+      if (icon) {
+        setWinIcon(icon);
+        setWinSettings(settings);
+        setIsVideo(settings.iconType === 'video');
+        hasAnimation = true;
       }
-      const audio = new Audio(music);
-      audioRef.current = audio;
-      audio.play().catch(err => console.warn('Audio play failed:', err));
-      hasAnimation = true;
-      setTimeout(() => {
+
+      if (music) {
         if (audioRef.current) {
           audioRef.current.pause();
           audioRef.current = null;
         }
-      }, 3000);
+        const audio = new Audio(music);
+        audioRef.current = audio;
+
+        const musicStart = settings.musicStart || 0;
+        const musicEnd = settings.musicEnd || 0;
+        let duration = 3000;
+
+        if (musicEnd > musicStart) {
+          audio.currentTime = musicStart;
+          duration = (musicEnd - musicStart) * 1000;
+        }
+
+        audio.play().catch(err => console.warn('Audio play failed:', err));
+        hasAnimation = true;
+
+        setTimeout(() => {
+          if (audioRef.current) {
+            audioRef.current.pause();
+            audioRef.current = null;
+          }
+        }, duration);
+      }
+
+      if (hasAnimation) setShowWin(true);
+      setTimeout(() => setShowWin(false), 3000);
     }
-    if (hasAnimation) setShowWin(true);
-    setTimeout(() => setShowWin(false), 3000);
-  }
-}, [leaderboardData, user]);
+  }, [leaderboardData, user]);
 
   useEffect(() => {
     if (!socket) return;
@@ -109,9 +122,6 @@ export default function Leaderboard() {
     if (!questionHistory || !isOrganizer) return null;
     const questionIds = Object.keys(questionHistory);
     if (questionIds.length === 0) return <p>Нет данных по вопросам</p>;
-
-    const playerNames = {};
-    board.forEach(p => { playerNames[p.user_id] = p.name; });
 
     return (
       <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4" onClick={() => setShowDetails(false)}>
@@ -192,39 +202,40 @@ export default function Leaderboard() {
         </>
       )}
       {showDetails && renderDetailsModal()}
+
       {showWin && winIcon && (
-  <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-60 z-50 pointer-events-none">
-    <div className="animate-pulse">
-      {isVideo ? (
-        <video
-          src={winIcon}
-          autoPlay
-          loop
-          muted
-          className="object-contain rounded-lg shadow-2xl"
-          style={{ maxWidth: winSettings.display_size === 'large' ? '400px' : winSettings.display_size === 'small' ? '200px' : '300px' }}
-          onLoadedMetadata={(e) => {
-            const vid = e.target;
-            const start = winSettings.start || 0;
-            const end = winSettings.end || 0;
-            if (end > start) {
-              vid.currentTime = start;
-              vid.play();
-              setTimeout(() => { vid.pause(); }, (end - start) * 1000);
-            }
-          }}
-        />
-      ) : (
-        <img
-          src={winIcon}
-          alt="Победа!"
-          className="object-contain rounded-lg shadow-2xl"
-          style={{ maxWidth: winSettings.display_size === 'large' ? '400px' : winSettings.display_size === 'small' ? '200px' : '300px' }}
-        />
+        <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-60 z-50 pointer-events-none">
+          <div className="animate-pulse">
+            {isVideo ? (
+              <video
+                src={winIcon}
+                autoPlay
+                loop
+                muted
+                className="object-contain rounded-lg shadow-2xl"
+                style={{ maxWidth: winSettings.display_size === 'large' ? '400px' : winSettings.display_size === 'small' ? '200px' : '300px' }}
+                onLoadedMetadata={(e) => {
+                  const vid = e.target;
+                  const start = winSettings.start || 0;
+                  const end = winSettings.end || 0;
+                  if (end > start) {
+                    vid.currentTime = start;
+                    vid.play();
+                    setTimeout(() => { vid.pause(); }, (end - start) * 1000);
+                  }
+                }}
+              />
+            ) : (
+              <img
+                src={winIcon}
+                alt="Победа!"
+                className="object-contain rounded-lg shadow-2xl"
+                style={{ maxWidth: winSettings.display_size === 'large' ? '400px' : winSettings.display_size === 'small' ? '200px' : '300px' }}
+              />
+            )}
+          </div>
+        </div>
       )}
-    </div>
-  </div>
-)}
     </div>
   );
 }

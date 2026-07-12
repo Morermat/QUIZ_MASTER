@@ -21,6 +21,8 @@ export default function Profile() {
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [isVideo, setIsVideo] = useState(false);
+  const [musicStart, setMusicStart] = useState(0);
+  const [musicEnd, setMusicEnd] = useState(0);
 
   const load = async () => {
     try {
@@ -36,6 +38,8 @@ export default function Profile() {
       setEnd(settings.end || 0);
       setDisplaySize(settings.display_size || 'medium');
       setIsVideo(settings.iconType === 'video');
+      setMusicStart(settings.musicStart || 0);
+      setMusicEnd(settings.musicEnd || 0);
     } catch (e) {
       setError(e.response?.data?.error || 'Не удалось загрузить профиль');
     }
@@ -74,6 +78,10 @@ export default function Profile() {
       formData.append('start', start);
       formData.append('end', end);
     }
+    if (musicFile) {
+      formData.append('musicStart', musicStart);
+      formData.append('musicEnd', musicEnd);
+    }
     formData.append('display_size', displaySize);
     try {
       const r = await api.post('/profile/upload', formData, {
@@ -88,6 +96,8 @@ export default function Profile() {
       setEnd(settings.end || 0);
       setDisplaySize(settings.display_size || 'medium');
       setIsVideo(settings.iconType === 'video');
+      setMusicStart(settings.musicStart || 0);
+      setMusicEnd(settings.musicEnd || 0);
       setIconFile(null);
       setMusicFile(null);
       await load();
@@ -110,6 +120,8 @@ export default function Profile() {
         setIsVideo(false);
       } else {
         setWinMusic(null);
+        setMusicStart(0);
+        setMusicEnd(0);
       }
       await load();
     } catch (e) {
@@ -188,10 +200,25 @@ export default function Profile() {
                 <button onClick={() => resetFile('music')} className="text-red-500 text-sm hover:underline">Обнулить</button>
               </div>
             )}
+            {(winMusic || musicFile) && (
+              <div className="mt-3 border-t pt-3">
+                <h4 className="font-medium">⏱Обрезка аудио (сек)</h4>
+                <div className="flex gap-3 mt-1">
+                  <div>
+                    <label className="block text-sm">Начало</label>
+                    <input type="number" min="0" value={musicStart} onChange={e => setMusicStart(parseInt(e.target.value) || 0)} className="w-20 px-2 py-1 border rounded bg-[var(--bg)]" />
+                  </div>
+                  <div>
+                    <label className="block text-sm">Конец</label>
+                    <input type="number" min="0" value={musicEnd} onChange={e => setMusicEnd(parseInt(e.target.value) || 0)} className="w-20 px-2 py-1 border rounded bg-[var(--bg)]" />
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
 
           <div className="bg-[var(--code-bg)] p-4 rounded-lg shadow">
-            <h3 className="font-semibold mb-2 flex items-center gap-2">Победная музыка</h3>
+            <h3 className="font-semibold mb-2 flex items-center gap-2">Победный медиа</h3>
             <input type="file" accept=".gif,.png,.webp,.mp4" onChange={e => handleFileChange('icon', e.target.files?.[0])} className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100" />
             {iconFile && <span className="block text-sm text-green-600 mt-1">Выбран: {iconFile.name}</span>}
             {winIcon && (
@@ -212,16 +239,17 @@ export default function Profile() {
               <div className="flex gap-3">
                 <div>
                   <label className="block text-sm">Начало (сек)</label>
-                  <input type="number" min="0" value={start} onChange={e => setStart(parseInt(e.target.value) || 0)} className="w-20 px-2 py-1 border rounded" />
+                  <input type="number" min="0" value={start} onChange={e => setStart(parseInt(e.target.value) || 0)} className="w-20 px-2 py-1 border rounded bg-[var(--bg)]" />
                 </div>
                 <div>
                   <label className="block text-sm">Конец (сек)</label>
-                  <input type="number" min="0" value={end} onChange={e => setEnd(parseInt(e.target.value) || 0)} className="w-20 px-2 py-1 border rounded" />
+                  <input type="number" min="0" value={end} onChange={e => setEnd(parseInt(e.target.value) || 0)} className="w-20 px-2 py-1 border rounded bg-[var(--bg)]" />
                 </div>
               </div>
             </div>
           )}
 
+          {/* Размер отображения */}
           <div className="bg-[var(--code-bg)] p-4 rounded-lg shadow">
             <h3 className="font-semibold mb-2">Размер при победе</h3>
             <select value={displaySize} onChange={e => setDisplaySize(e.target.value)} className="px-3 py-2 border rounded bg-[var(--bg)]">
