@@ -3,6 +3,7 @@ import axios from 'axios';
 
 const CARDS_COUNT = 12;
 const RADIUS = 180;
+
 const PREDICTIONS = [
   "Шутки шутками, смех смехом, но веселье заканчивается когда сова на скакалке попадается — это значит, что твой следующий проигрыш уже будет не в игре. {location} жди...",
   "Ты думаешь, что выиграл? Ха. Вселенная просто даёт тебе ложную надежду.",
@@ -21,13 +22,17 @@ const PREDICTIONS = [
 export default function CardOrbit() {
   const [prediction, setPrediction] = useState(null);
   const [showPrediction, setShowPrediction] = useState(false);
-  const intervalRef = useRef(null);
-  const [location, setLocation] = useState('неизвестное местоположение');
+
+  const [location, setLocation] = useState("неизвестное местоположение");
   const [loading, setLoading] = useState(true);
+
+  const intervalRef = useRef(null);
+  const frameRef = useRef(null);
+
+  const [rotation, setRotation] = useState(0);
 
   useEffect(() => {
     if (!navigator.geolocation) {
-      setLocation('неизвестное местоположение');
       setLoading(false);
       return;
     }
@@ -36,100 +41,191 @@ export default function CardOrbit() {
       async (position) => {
         try {
           const { latitude, longitude } = position.coords;
-          const coordsStr = `${latitude.toFixed(5)}° с.ш., ${longitude.toFixed(5)}° в.д.`;
+
+          const coordsStr =
+            `${latitude.toFixed(5)}° с.ш., ${longitude.toFixed(5)}° в.д.`;
+
           const response = await axios.get(
             `https://geocode.maps.co/reverse?lat=${latitude}&lon=${longitude}&format=json&accept-language=ru`
           );
+
           const address = response.data.address;
+
           const parts = [];
+
           if (address.country) parts.push(address.country);
           if (address.state) parts.push(address.state);
+
           if (address.city || address.town || address.village) {
-            const city = address.city || address.town || address.village;
-            parts.push(`г. ${city}`);
+            parts.push(
+              `г. ${address.city || address.town || address.village}`
+            );
           }
+
           if (address.road) {
             let road = address.road;
-            if (address.house_number) road += `, д. ${address.house_number}`;
+
+            if (address.house_number) {
+              road += `, д. ${address.house_number}`;
+            }
+
             parts.push(road);
           }
-          const addressStr = parts.join(', ');
-          setLocation(`${coordsStr}, ${addressStr}`);
-        } catch (err) {
-          console.warn('Геокодинг не удался:', err);
+
+          setLocation(`${coordsStr}, ${parts.join(", ")}`);
+        } catch {
           const { latitude, longitude } = position.coords;
-          setLocation(`${latitude.toFixed(5)}° с.ш., ${longitude.toFixed(5)}° в.д.`);
+
+          setLocation(
+            `${latitude.toFixed(5)}° с.ш., ${longitude.toFixed(5)}° в.д.`
+          );
         } finally {
           setLoading(false);
         }
       },
-      (err) => {
-        console.warn('Геолокация отклонена:', err);
-        setLocation('неизвестное местоположение');
+      () => {
         setLoading(false);
       },
-      { timeout: 5000, enableHighAccuracy: false }
+      {
+        timeout: 5000,
+        enableHighAccuracy: false,
+      }
     );
   }, []);
 
   useEffect(() => {
     if (loading) return;
 
-    const startInterval = () => {
-      intervalRef.current = setInterval(() => {
-        const raw = PREDICTIONS[Math.floor(Math.random() * PREDICTIONS.length)];
-        const locationText = location || 'неизвестное местоположение';
-        const text = raw.replace(/\{location\}/g, locationText);
-        setPrediction(text);
-        setShowPrediction(true);
-        setTimeout(() => {
-          setShowPrediction(false);
-        }, 4000);
-      }, 8000 + Math.random() * 4000);
-    };
-    startInterval();
+    intervalRef.current = setInterval(() => {
+      const raw =
+        PREDICTIONS[Math.floor(Math.random() * PREDICTIONS.length)];
+
+      setPrediction(
+        raw.replace(/\{location\}/g, location)
+      );
+
+      setShowPrediction(true);
+
+      setTimeout(() => {
+        setShowPrediction(false);
+      }, 4000);
+
+    }, 8000 + Math.random() * 4000);
+
     return () => clearInterval(intervalRef.current);
-  }, [location, loading]);
+  }, [loading, location]);
 
-  return (
-    <div className="fixed bottom-8 right-8 w-80 h-80 pointer-events-none z-40" style={{ perspective: '1200px' }}>
-      <div className="relative w-full h-full">
-        <div
-          className="absolute inset-0 flex items-center justify-center animate-spin-slow"
-          style={{ transformStyle: 'preserve-3d' }}
-        >
-          {Array.from({ length: CARDS_COUNT }).map((_, i) => {
-            const angle = (i / CARDS_COUNT) * 360;
-            const rad = (angle * Math.PI) / 180;
-            const sin = Math.sin(rad);
-            const cos = Math.cos(rad);
+  useEffect(() => {
+    let last = performance.now();
 
-            const scale = 0.5 + 0.5 * (cos + 1) / 2;
-            const opacity = 0.2 + 0.8 * (cos + 1) / 2;
+    const animate = (time) => {
+      const delta = time - last;
+      last = time;
 
-            return (
-              <div
-                key={i}
-                className="absolute w-20 h-28 bg-[var(--bg-card)] border border-gold/30 rounded-xl shadow-lg"
-                style={{
-                  transform: `rotateX(${angle}deg) translateZ(${RADIUS}px) rotateY(0deg) scale(${scale})`,
-                  transformStyle: 'preserve-3d',
-                  backfaceVisibility: 'hidden',
-                  backgroundImage: `url('/cards/${(i % 15) + 1}.png')`,
-                  backgroundSize: 'cover',
-                  backgroundPosition: 'center',
-                  opacity: opacity,
-                  transition: 'opacity 0.1s, transform 0.1s',
-                  boxShadow: '0 10px 30px rgba(0,0,0,0.8)',
-                }}
-              />
-            );
-          })}
-        </div>
+      setRotation((r) => (r + delta * 0.03) % 360);
+
+      frameRef.current = requestAnimationFrame(animate);
+    };
+
+    frameRef.current = requestAnimationFrame(animate);
+
+    return () => cancelAnimationFrame(frameRef.current);
+  }, []);
+
+  const cards = Array.from({ length: CARDS_COUNT }).map((_, i) => {
+    const angle =
+      (i / CARDS_COUNT) * Math.PI * 2 +
+      rotation * Math.PI / 180;
+
+    const x = Math.sin(angle) * 115;
+    const z = Math.cos(angle) * RADIUS;
+    const y = Math.sin(angle * 2) * 8;
+
+    const depth = (z + RADIUS) / (RADIUS * 2);
+
+    const scale = 0.55 + depth * 0.45;
+    const opacity = 0.25 + depth * 0.75;
+
+    return {
+      id: i,
+      x,
+      y,
+      z,
+      depth,
+      scale,
+      opacity,
+      angle,
+      image: `/cards/${(i % 15) + 1}.png`,
+    };
+  });
+
+  cards.sort((a, b) => a.z - b.z);
+
+  return (    <div
+      className="fixed bottom-8 right-8 w-80 h-80 pointer-events-none z-40"
+      style={{
+        perspective: "1600px",
+        perspectiveOrigin: "center center",
+      }}
+    >
+      <div
+        className="relative w-full h-full flex items-center justify-center"
+        style={{
+          transformStyle: "preserve-3d",
+        }}
+      >
+        {cards.map((card) => (
+          <div
+            key={card.id}
+            className="absolute w-20 h-28 rounded-xl border border-gold/30"
+            style={{
+              transform: `
+                translate3d(
+                  ${card.x}px,
+                  ${card.y}px,
+                  ${card.z}px
+                )
+                rotateY(${Math.sin(card.angle) * 18}deg)
+                scale(${card.scale})
+              `,
+              transformStyle: "preserve-3d",
+              backfaceVisibility: "hidden",
+
+              backgroundImage: `url(${card.image})`,
+              backgroundSize: "cover",
+              backgroundPosition: "center",
+
+              opacity: card.opacity,
+
+              zIndex: Math.round(card.depth * 1000),
+
+              filter: `
+                brightness(${0.55 + card.depth * 0.65})
+                saturate(${0.8 + card.depth * 0.35})
+              `,
+
+              boxShadow: `
+                0 ${10 + card.depth * 20}px
+                ${25 + card.depth * 25}px
+                rgba(0,0,0,${0.45 - card.depth * 0.2})
+              `,
+
+              transition: "none",
+              willChange: "transform",
+            }}
+          />
+        ))}
 
         {showPrediction && prediction && (
-          <div className="absolute inset-0 flex items-center justify-center animate-fade-in-up">
-            <div className="bg-[var(--bg-card)] border border-gold/40 rounded-xl p-5 shadow-2xl max-w-xs text-center text-sm text-[var(--text-secondary)]">
+          <div
+            className="absolute inset-0 flex items-center justify-center animate-fade-in-up"
+            style={{
+              transform: "translateZ(300px)",
+            }}
+          >
+            <div
+              className="bg-[var(--bg-card)] border border-gold/40 rounded-xl p-5 shadow-2xl max-w-xs text-center text-sm text-[var(--text-secondary)]"
+            >
               {prediction}
             </div>
           </div>
