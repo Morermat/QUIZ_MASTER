@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import axios from 'axios';
 
 const CARDS_COUNT = 12;
-const RADIUS = 180;
+const RADIUS = window.innerWidth < 640 ? 80 : 180;
 
 const PREDICTIONS = [
   "Шутки шутками, смех смехом, но веселье заканчивается когда сова на скакалке попадается — это значит, что твой следующий проигрыш уже будет не в игре. {location} жди...",
@@ -120,12 +120,9 @@ export default function CardOrbit() {
 
   return (
     <div
-      className="hidden md:block fixed bottom-4 right-4 w-64 h-64 pointer-events-none z-40 md:w-80 md:h-80 lg:w-96 lg:h-96"
-      style={{
-        perspective: "1600px",
-        perspectiveOrigin: "center center",
-      }}
-    >
+  className="fixed bottom-1 right-1 w-40 h-40 pointer-events-none z-40 sm:w-56 sm:h-56 md:w-72 md:h-72 lg:w-96 lg:h-96"
+  style={{ perspective: "800px", perspectiveOrigin: "center center" }}
+>
       <div
         className="relative w-full h-full flex items-center justify-center"
         style={{ transformStyle: "preserve-3d" }}
