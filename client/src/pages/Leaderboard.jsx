@@ -1,331 +1,242 @@
-import { useEffect, useState } from 'react';
-import { api } from '../api';
+import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { useNavigate } from 'react-router-dom';
+import { useSocket } from '../context/SocketContext';
+import { useState, useEffect, useRef } from 'react';
 
-export default function Profile() {
-  const { user, setUser } = useAuth();
+export default function Leaderboard() {
+  const { code } = useParams();
   const navigate = useNavigate();
-  const [data, setData] = useState(null);
-  const [name, setName] = useState('');
-  const [avatar, setAvatar] = useState('');
-  const [winIcon, setWinIcon] = useState(null);
-  const [winMusic, setWinMusic] = useState(null);
-  const [winSettings, setWinSettings] = useState({});
-  const [iconFile, setIconFile] = useState(null);
-  const [musicFile, setMusicFile] = useState(null);
-  const [start, setStart] = useState(0);
-  const [end, setEnd] = useState(0);
-  const [displaySize, setDisplaySize] = useState('medium');
+  const location = useLocation();
+  const { user } = useAuth();
+  const { socket } = useSocket();
+  const [leaderboardData, setLeaderboardData] = useState(location.state?.leaderboard || null);
+  const [isOrganizer, setIsOrganizer] = useState(false);
   const [error, setError] = useState('');
-  const [saving, setSaving] = useState(false);
-  const [uploading, setUploading] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [questionHistory, setQuestionHistory] = useState(null);
+  const [showDetails, setShowDetails] = useState(false);
+  const [showWin, setShowWin] = useState(false);
+  const [winIcon, setWinIcon] = useState(null);
+  const audioRef = useRef(null);
   const [isVideo, setIsVideo] = useState(false);
-  const [musicStart, setMusicStart] = useState(0);
-  const [musicEnd, setMusicEnd] = useState(0);
+  const [winSettings, setWinSettings] = useState({});
 
-  const load = async () => {
-    try {
-      const r = await api.get('/profile');
-      setData(r.data);
-      setName(r.data.user.name || '');
-      setAvatar(r.data.user.avatar_url || '');
-      setWinIcon(r.data.user.win_icon || null);
-      setWinMusic(r.data.user.win_music || null);
-      const settings = r.data.user.win_settings || {};
+  useEffect(() => {
+    if (!leaderboardData || !leaderboardData.length) return;
+    const winner = leaderboardData[0];
+    if (!winner) return;
+
+    const icon = winner.win_icon;
+    const music = winner.win_music;
+    const settings = winner.win_settings || {};
+
+    let hasAnimation = false;
+
+    if (icon) {
+      setWinIcon(icon);
       setWinSettings(settings);
-      setStart(settings.start || 0);
-      setEnd(settings.end || 0);
-      setDisplaySize(settings.display_size || 'medium');
       setIsVideo(settings.iconType === 'video');
-      setMusicStart(settings.musicStart || 0);
-      setMusicEnd(settings.musicEnd || 0);
-    } catch (e) {
-      setError(e.response?.data?.error || 'Не удалось загрузить профиль');
+      hasAnimation = true;
     }
-  };
 
-  useEffect(() => { load(); }, []);
-
-  const handleFileChange = (type, file) => {
-    if (!file) return;
-    if (type === 'icon') {
-      if (!['image/gif', 'image/png', 'image/webp', 'video/mp4'].includes(file.type)) {
-        setError('Разрешены только GIF, PNG, WEBP, MP4');
-        return;
+    if (music) {
+      if (audioRef.current) {
+        audioRef.current.pause();
+        audioRef.current = null;
       }
-      setIsVideo(file.type.startsWith('video'));
-      setIconFile(file);
-    }
-    if (type === 'music') {
-      if (!['audio/mpeg', 'audio/ogg'].includes(file.type)) {
-        setError('Разрешены только MP3, OGG');
-        return;
+      const audio = new Audio(music);
+      audioRef.current = audio;
+
+      const musicStart = settings.musicStart || 0;
+      const musicEnd = settings.musicEnd || 0;
+      let duration = 3000;
+
+      if (musicEnd > musicStart) {
+        audio.currentTime = musicStart;
+        duration = (musicEnd - musicStart) * 1000;
       }
-      setMusicFile(file);
-    }
-    setError('');
-  };
 
-  const uploadFiles = async () => {
-    if (!iconFile && !musicFile) return;
-    setUploading(true);
-    setError('');
-    const formData = new FormData();
-    if (iconFile) formData.append('icon', iconFile);
-    if (musicFile) formData.append('music', musicFile);
-    if (isVideo) {
-      formData.append('start', start);
-      formData.append('end', end);
-    }
-    if (musicFile) {
-      formData.append('musicStart', musicStart);
-      formData.append('musicEnd', musicEnd);
-    }
-    formData.append('display_size', displaySize);
-    try {
-      const r = await api.post('/profile/upload', formData, {
-        headers: { 'Content-Type': 'multipart/form-data' }
-      });
-      setUser(r.data.user);
-      setWinIcon(r.data.user.win_icon || null);
-      setWinMusic(r.data.user.win_music || null);
-      const settings = r.data.user.win_settings || {};
-      setWinSettings(settings);
-      setStart(settings.start || 0);
-      setEnd(settings.end || 0);
-      setDisplaySize(settings.display_size || 'medium');
-      setIsVideo(settings.iconType === 'video');
-      setMusicStart(settings.musicStart || 0);
-      setMusicEnd(settings.musicEnd || 0);
-      setIconFile(null);
-      setMusicFile(null);
-      await load();
-    } catch (e) {
-      setError(e.response?.data?.error || 'Ошибка загрузки');
-    } finally {
-      setUploading(false);
-    }
-  };
+      audio.play().catch(err => console.warn('Audio play failed:', err));
+      hasAnimation = true;
 
-  const resetFile = async (type) => {
-    try {
-      const r = await api.delete(`/profile/upload?type=${type}`);
-      setUser(r.data.user);
-      if (type === 'icon') {
-        setWinIcon(null);
-        setWinSettings({});
-        setStart(0);
-        setEnd(0);
-        setIsVideo(false);
-      } else {
-        setWinMusic(null);
-        setMusicStart(0);
-        setMusicEnd(0);
+      setTimeout(() => {
+        if (audioRef.current) {
+          audioRef.current.pause();
+          audioRef.current = null;
+        }
+      }, duration);
+    }
+
+    if (hasAnimation) setShowWin(true);
+    setTimeout(() => setShowWin(false), 3000);
+  }, [leaderboardData]);
+
+  useEffect(() => {
+    if (!socket) return;
+
+    const onGameState = (data) => {
+      if (data.roomCode && data.roomCode !== code) return;
+      if (data.isOrganizer !== undefined) setIsOrganizer(data.isOrganizer);
+      if (data.leaderboard && data.leaderboard.length > 0) {
+        setLeaderboardData(data.leaderboard);
+        setLoading(false);
       }
-      await load();
-    } catch (e) {
-      setError(e.response?.data?.error || 'Ошибка удаления');
-    }
+      if (data.questionHistory) {
+        setQuestionHistory(data.questionHistory);
+      }
+      if (data.status === 'waiting') navigate(`/lobby/${code}`);
+    };
+
+    const onLeaderboard = (data) => {
+      const board = data.players || data;
+      setLeaderboardData(board);
+      setLoading(false);
+    };
+
+    const onRestart = () => navigate(`/lobby/${code}`);
+
+    socket.on('game_state', onGameState);
+    socket.on('leaderboard', onLeaderboard);
+    socket.on('quiz_restarted', onRestart);
+
+    socket.emit('join_room', { roomCode: code }, (res) => {
+      if (res?.error) {
+        setError(res.error);
+        setLoading(false);
+      }
+    });
+    socket.emit('request_state', { roomCode: code });
+
+    return () => {
+      socket.off('game_state', onGameState);
+      socket.off('leaderboard', onLeaderboard);
+      socket.off('quiz_restarted', onRestart);
+      socket.emit('leave_room', { roomCode: code });
+    };
+  }, [socket, code, navigate]);
+
+  const board = leaderboardData || [];
+
+  if (loading) return <div className="max-w-lg mx-auto p-6 text-center">Загрузка...</div>;
+
+  const renderDetailsModal = () => {
+    if (!questionHistory || !isOrganizer) return null;
+    const questionIds = Object.keys(questionHistory);
+    if (questionIds.length === 0) return <p>Нет данных по вопросам</p>;
+
+    return (
+      <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4" onClick={() => setShowDetails(false)}>
+        <div className="bg-white dark:bg-gray-800 rounded-lg max-w-4xl w-full max-h-[80vh] overflow-auto p-6" onClick={(e) => e.stopPropagation()}>
+          <div className="flex justify-between items-center mb-4">
+            <h2 className="text-2xl font-bold">Статистика по вопросам</h2>
+            <button onClick={() => setShowDetails(false)} className="text-gray-500 hover:text-gray-700">✕</button>
+          </div>
+          <div className="overflow-x-auto">
+            <table className="w-full border-collapse text-sm">
+              <thead>
+                <tr>
+                  <th className="border p-2 text-left">Вопрос</th>
+                  {board.map(p => (
+                    <th key={p.user_id} className="border p-2 text-center">{p.name}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {questionIds.map(qId => {
+                  const q = questionHistory[qId];
+                  return (
+                    <tr key={qId}>
+                      <td className="border p-2 font-medium">{q.questionText}</td>
+                      {board.map(p => {
+                        const answer = q.answers[p.user_id];
+                        let cell = '—';
+                        let bg = '';
+                        if (answer) {
+                          cell = answer.isCorrect ? '✅' : '❌';
+                          bg = answer.isCorrect ? 'bg-green-100 dark:bg-green-900/20' : 'bg-red-100 dark:bg-red-900/20';
+                        }
+                        return (
+                          <td key={p.user_id} className={`border p-2 text-center ${bg}`}>{cell}</td>
+                        );
+                      })}
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+          <div className="mt-4 text-xs text-gray-500">✅ — правильно, ❌ — неправильно, — — не отвечал</div>
+        </div>
+      </div>
+    );
   };
-
-  const saveProfile = async () => {
-    setSaving(true);
-    setError('');
-    try {
-      const r = await api.patch('/profile', { name, avatar_url: avatar });
-      setUser(r.data.user);
-      sessionStorage.setItem('user', JSON.stringify(r.data.user));
-      await load();
-    } catch (e) {
-      setError(e.response?.data?.error || 'Не удалось сохранить');
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  if (error && !data) return <div className="p-8"><p className="text-red-500">{error}</p><button onClick={() => navigate('/dashboard')}>Назад</button></div>;
-  if (!data) return <div className="p-8">Загрузка...</div>;
-
-  const s = data.stats || { gamesPlayed: 0, wins: 0, correctAnswers: 0, correctPercent: 0, history: [] };
 
   return (
-    <div className="max-w-5xl mx-auto p-4 md:p-6 animate-fade-in overflow-hidden">
-      <h1 className="text-3xl font-bold mb-6">Профиль</h1>
+    <div className="max-w-lg mx-auto p-6 animate-fade-in">
+      <h1 className="text-3xl font-bold mb-6">Лидерборд</h1>
       {error && <p className="text-red-500">{error}</p>}
-
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <div className="space-y-4">
-          <div className="flex flex-col sm:flex-row gap-4 items-center sm:items-start mb-4">
-            <img src={avatar} alt="Аватар" className="w-24 h-24 rounded-full object-cover flex-shrink-0" />
-            <div className="w-full sm:w-auto">
-              <input 
-                value={name} 
-                maxLength={40} 
-                onChange={e => setName(e.target.value)} 
-                className="px-3 py-2 border rounded bg-[var(--bg)] w-full sm:w-auto" 
-              />
-              <input 
-                type="file" 
-                accept="image/*" 
-                onChange={e => {
-                  const f = e.target.files?.[0];
-                  if (!f) return;
-                  const reader = new FileReader();
-                  reader.onload = () => setAvatar(reader.result);
-                  reader.readAsDataURL(f);
-                }} 
-                className="mt-2 w-full" 
-              />
-            </div>
-          </div>
-
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-            {[['Игр', s.gamesPlayed], ['Побед', s.wins], ['Правильных', s.correctAnswers], ['Процент', `${s.correctPercent}%`]].map(([a, b]) => (
-              <div className="p-4 border rounded text-center" key={a}>
-                <b className="text-2xl">{b}</b>
-                <div>{a}</div>
+      {board.length === 0 ? (
+        <p className="text-center text-gray-500">Нет результатов</p>
+      ) : (
+        <>
+          <div className="grid gap-2">
+            {board.map((p) => (
+              <div key={p.user_id} className="flex items-center gap-3 p-3 border rounded">
+                <b>{p.place || '—'}</b>
+                {p.avatar_url && <img src={p.avatar_url} alt="" className="w-9 h-9 rounded-full" />}
+                <span>{p.name}{p.user_id === user?.id ? ' (Вы)' : ''}</span>
+                <b className="ml-auto">{p.score !== undefined ? p.score : '0'}</b>
               </div>
             ))}
           </div>
-
-          <div>
-            <h2 className="text-xl font-semibold mb-2">История игр</h2>
-            {s.history && s.history.length ? s.history.map((h, i) => (
-              <div key={`${h.date}-${i}`} className="p-3 border-b">{h.quizTitle} — {h.score} балла, место {h.place}, {new Date(h.date).toLocaleString()}</div>
-            )) : <p>История пока пустая</p>}
-          </div>
-        </div>
-
-        <div className="border-t md:border-t-0 md:border-l pt-6 md:pt-0 md:pl-6 space-y-4 max-w-full overflow-hidden">
-          <h2 className="text-xl font-bold mb-4 text-[var(--accent-gold)]">Что проигрывать при победе</h2>
-
-          <div className="bg-[var(--bg-card)] p-4 md:p-5 rounded-xl border border-gold/20 shadow-lg w-full overflow-hidden">
-            <h3 className="font-semibold mb-2 text-lg">Победная музыка</h3>
-            <input 
-              type="file" 
-              accept=".mp3,.ogg" 
-              onChange={e => handleFileChange('music', e.target.files?.[0])} 
-              className="block w-full text-sm text-gray-300 file:mr-4 file:py-2 file:px-4 file:rounded file:border-0 file:text-sm file:font-semibold file:bg-[var(--accent-gold)] file:text-[#0b081a] hover:file:bg-[#c9a84c] file:cursor-pointer" 
-            />
-            {musicFile && <span className="block text-sm text-green-400 mt-1">Выбран: {musicFile.name}</span>}
-            {winMusic && (
-              <div className="mt-3 flex flex-col sm:flex-row items-start sm:items-center gap-3">
-                <audio controls src={winMusic} className="max-w-full sm:max-w-xs" />
-                <button onClick={() => resetFile('music')} className="text-red-400 text-sm hover:underline">Обнулить</button>
-              </div>
-            )}
-            {(winMusic || musicFile) && (
-              <div className="mt-4 border-t border-gold/20 pt-4">
-                <h4 className="font-medium text-sm">Обрезка аудио (сек)</h4>
-                <div className="flex flex-wrap gap-3 mt-1">
-                  <div>
-                    <label className="block text-xs text-[var(--text-secondary)]">Начало</label>
-                    <input 
-                      type="number" 
-                      min="0" 
-                      value={musicStart} 
-                      onChange={e => setMusicStart(parseInt(e.target.value) || 0)} 
-                      className="w-20 px-2 py-1 border rounded bg-[var(--bg)]" 
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-xs text-[var(--text-secondary)]">Конец</label>
-                    <input 
-                      type="number" 
-                      min="0" 
-                      value={musicEnd} 
-                      onChange={e => setMusicEnd(parseInt(e.target.value) || 0)} 
-                      className="w-20 px-2 py-1 border rounded bg-[var(--bg)]" 
-                    />
-                  </div>
-                </div>
-              </div>
-            )}
-          </div>
-
-          <div className="bg-[var(--bg-card)] p-4 md:p-5 rounded-xl border border-gold/20 shadow-lg w-full overflow-hidden">
-            <h3 className="font-semibold mb-2 text-lg">Победный медиа</h3>
-            <input 
-              type="file" 
-              accept=".gif,.png,.webp,.mp4" 
-              onChange={e => handleFileChange('icon', e.target.files?.[0])} 
-              className="block w-full text-sm text-gray-300 file:mr-4 file:py-2 file:px-4 file:rounded file:border-0 file:text-sm file:font-semibold file:bg-[var(--accent-gold)] file:text-[#0b081a] hover:file:bg-[#c9a84c] file:cursor-pointer" 
-            />
-            {iconFile && <span className="block text-sm text-green-400 mt-1">Выбран: {iconFile.name}</span>}
-            {winIcon && (
-              <div className="mt-3">
-                {isVideo ? (
-                  <video src={winIcon} controls className="max-w-full max-h-40 rounded" />
-                ) : (
-                  <img src={winIcon} alt="Иконка победы" className="max-w-full max-h-40 object-contain rounded" />
+          <div className="mt-5 flex gap-3 flex-wrap">
+            <button onClick={() => navigate('/dashboard')} className="btn-secondary">На главную</button>
+            {isOrganizer && (
+              <>
+                <button className="btn-primary" onClick={() => socket.emit('restart_quiz', { roomCode: code })}>Перезапустить</button>
+                {questionHistory && Object.keys(questionHistory).length > 0 && (
+                  <button className="btn-secondary" onClick={() => setShowDetails(true)}>Детали</button>
                 )}
-                <button onClick={() => resetFile('icon')} className="text-red-400 text-sm mt-1 hover:underline">Обнулить</button>
-              </div>
+              </>
             )}
           </div>
+        </>
+      )}
+      {showDetails && renderDetailsModal()}
 
-          {isVideo && winIcon && (
-            <div className="bg-[var(--bg-card)] p-4 md:p-5 rounded-xl border border-gold/20 shadow-lg w-full overflow-hidden">
-              <h3 className="font-semibold mb-2 text-lg">Обрезка видео</h3>
-              <div className="flex flex-wrap gap-3">
-                <div>
-                  <label className="block text-xs text-[var(--text-secondary)]">Начало (сек)</label>
-                  <input 
-                    type="number" 
-                    min="0" 
-                    value={start} 
-                    onChange={e => setStart(parseInt(e.target.value) || 0)} 
-                    className="w-20 px-2 py-1 border rounded bg-[var(--bg)]" 
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs text-[var(--text-secondary)]">Конец (сек)</label>
-                  <input 
-                    type="number" 
-                    min="0" 
-                    value={end} 
-                    onChange={e => setEnd(parseInt(e.target.value) || 0)} 
-                    className="w-20 px-2 py-1 border rounded bg-[var(--bg)]" 
-                  />
-                </div>
-              </div>
-            </div>
-          )}
-
-          <div className="bg-[var(--bg-card)] p-4 md:p-5 rounded-xl border border-gold/20 shadow-lg w-full overflow-hidden">
-            <h3 className="font-semibold mb-2 text-lg">Размер при победе</h3>
-            <select 
-              value={displaySize} 
-              onChange={e => setDisplaySize(e.target.value)} 
-              className="px-3 py-2 border rounded bg-[var(--bg)] w-full"
-            >
-              <option value="small">Маленький (200px)</option>
-              <option value="medium">Средний (300px)</option>
-              <option value="large">Большой (400px)</option>
-            </select>
-          </div>
-
-          <div className="flex flex-col gap-2 mt-4 w-full">
-            <button 
-              className="btn-secondary w-full py-3" 
-              disabled={uploading || (!iconFile && !musicFile)} 
-              onClick={uploadFiles}
-            >
-              {uploading ? 'Загрузка...' : 'Загрузить файлы и настройки'}
-            </button>
-            <button 
-              className="btn-primary w-full py-3" 
-              disabled={saving} 
-              onClick={saveProfile}
-            >
-              {saving ? 'Сохранение...' : 'Сохранить профиль'}
-            </button>
+      {showWin && winIcon && (
+        <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-60 z-50 pointer-events-none">
+          <div className="animate-pulse">
+            {isVideo ? (
+              <video
+                src={winIcon}
+                autoPlay
+                loop
+                muted
+                className="object-contain rounded-lg shadow-2xl"
+                style={{ maxWidth: winSettings.display_size === 'large' ? '400px' : winSettings.display_size === 'small' ? '200px' : '300px' }}
+                onLoadedMetadata={(e) => {
+                  const vid = e.target;
+                  const start = winSettings.start || 0;
+                  const end = winSettings.end || 0;
+                  if (end > start) {
+                    vid.currentTime = start;
+                    vid.play();
+                    setTimeout(() => { vid.pause(); }, (end - start) * 1000);
+                  }
+                }}
+              />
+            ) : (
+              <img
+                src={winIcon}
+                alt="Победа!"
+                className="object-contain rounded-lg shadow-2xl"
+                style={{ maxWidth: winSettings.display_size === 'large' ? '400px' : winSettings.display_size === 'small' ? '200px' : '300px' }}
+              />
+            )}
           </div>
         </div>
-      </div>
-
-      <button className="mt-6" onClick={() => navigate('/dashboard')}>← Назад</button>
+      )}
     </div>
   );
 }

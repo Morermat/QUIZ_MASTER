@@ -168,16 +168,20 @@ export default function CardOrbit() {
             }}
           >
             <div
-              className="bg-[var(--bg-card)] border border-gold/40 rounded-xl p-5 shadow-2xl max-w-xs text-center text-sm text-[var(--text-secondary)] animate-fade-in-up"
-              style={{
-                animation: "fadeInUp 0.6s ease-out forwards",
-                cursor: "pointer",
-              }}
-              onClick={() => setShowPrediction(false)}
-            >
-              {prediction}
-              <div className="text-xs opacity-50 mt-1 italic">(нажми, чтобы скрыть)</div>
-            </div>
+  className="bg-[var(--bg-card)] border border-gold/40 rounded-xl p-3 shadow-2xl max-w-[180px] text-center text-[10px] text-[var(--text-secondary)] animate-fade-in-up"
+  style={{
+    animation: "fadeInUp 0.6s ease-out forwards",
+    cursor: "pointer",
+    wordWrap: "break-word",
+    overflowWrap: "break-word",
+    maxHeight: "120px",
+    overflowY: "auto",
+  }}
+  onClick={() => setShowPrediction(false)}
+>
+  {prediction}
+  <div className="text-[8px] opacity-50 mt-1 italic">(нажми)</div>
+</div>
           </div>
         )}
       </div>
